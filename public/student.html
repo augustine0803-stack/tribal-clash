@@ -180,8 +180,12 @@
                 document.getElementById('view-lobby').style.display = 'none';
                 document.getElementById('view-game').style.display = 'block';
                 
-                // 動態處理題號
-                let displayQNum = state.currentQuestionIndex === 0 ? "試煉題" : `第 ${state.currentQuestionIndex} 題`;
+                // 【修復手機端進度文字顯示】
+                let displayQNum = "";
+                if (state.currentQuestionIndex === -1) displayQNum = "測試準備";
+                else if (state.currentQuestionIndex === 0) displayQNum = "試煉題";
+                else displayQNum = `第 ${state.currentQuestionIndex} 題`;
+                
                 document.getElementById('q-number').innerText = `進度：${displayQNum}`;
                 
                 if(state.phase === 'answering' && phase !== 'answering') resetUI();
@@ -309,7 +313,7 @@
         function showResult(c) {
             const o = document.getElementById('result-overlay'); o.style.display = 'flex';
             o.style.background = c ? 'rgba(39, 174, 96, 0.95)' : 'rgba(192, 57, 43, 0.95)';
-            document.getElementById('result-icon').innerText = c ? '⭕' : '答題成功';
+            document.getElementById('result-icon').innerText = c ? '⭕' : '❌';
             document.getElementById('result-text').innerText = c ? '答題成功' : '答題失敗';
             setTimeout(() => o.style.display = 'none', 3000);
         }

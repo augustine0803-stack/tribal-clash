@@ -42,7 +42,6 @@
         .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 5px 0 #2980b9;}
         .reset-btn { position: fixed; top: 15px; left: 15px; background: #c0392b; color: white; padding: 8px 12px; border-radius: 8px; border: 2px solid white; cursor: pointer; font-size: 14px; z-index: 1000; }
         
-        /* 確保 Setup 視窗內容完美置中 */
         #view-setup { align-items: center; justify-content: center; }
     </style>
 </head>
@@ -187,9 +186,17 @@
             }
             else if (state.phase === 'round_transition') {
                 document.getElementById('view-transition').classList.add('active');
+                
+                // 【修復按鈕與標題文字】
                 const titleText = currentQIndex === -1 ? "🔥 準備進行天神試煉 🔥" : (currentQIndex === 0 ? "✨ 試煉題結束，所有部落獲得庇護血量重置 ✨" : `第 ${currentQIndex} 題 結束`);
                 document.getElementById('transition-title').innerText = titleText;
-                document.getElementById('btn-challenge-next').innerText = `開始第 ${currentQIndex + 1} 題`;
+                
+                let nextText = "";
+                if (currentQIndex === -1) nextText = "開始試煉題";
+                else if (currentQIndex === 0) nextText = "開始第 1 題";
+                else nextText = `開始第 ${currentQIndex + 1} 題`;
+                
+                document.getElementById('btn-challenge-next').innerText = nextText;
                 document.getElementById('btn-challenge-next').style.display = 'inline-block';
                 document.getElementById('countdown-text').style.display = 'none';
                 document.getElementById('timer-box').style.display = 'none';
@@ -235,6 +242,10 @@
             const exp = document.getElementById('explanation');
             if(state.phase !== 'answering' && q['詳解']) { exp.style.display = 'block'; exp.innerHTML = `💡 詳解：${q['詳解']}`; } 
             else { exp.style.display = 'none'; }
+            
+            // 【修復按鈕消失】重新補回按鈕切換邏輯
+            document.getElementById('btn-reveal').style.display = (state.phase === 'answering') ? 'inline-block' : 'none';
+            document.getElementById('btn-actions').style.display = (state.phase === 'reveal_answers') ? 'inline-block' : 'none';
         }
 
         function renderGrid(containerId, state) {
