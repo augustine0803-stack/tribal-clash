@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <title>部落衝突 - 2.0 大螢幕</title>
     <style>
-        /* 解除強制隱藏，改為 auto，確保按鈕絕對不會消失！ */
         body { min-height: 100vh; overflow-y: auto; overflow-x: hidden; background-color: #0b0e14; background-size: cover; background-position: center; background-attachment: fixed; color: #fff; font-family: 'Impact', 'Arial Black', sans-serif; margin: 0; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; text-align: center; transition: background-image 0.5s ease-in-out; }
         .view { display: none; width: 100%; height: 100%; flex-direction: column; } .active { display: flex; }
         .shadow-text { color: #f39c12; font-size: 32px; text-shadow: 3px 3px 5px rgba(0,0,0,0.8); margin: 0 0 5px 0; flex-shrink: 0; }
         
-        /* 壓縮題目區域的空間 */
         .q-card { background: rgba(26, 26, 46, 0.95); border: 4px solid #f39c12; padding: 15px 20px; border-radius: 15px; margin: 15px auto 10px auto; max-width: 1000px; width: 90%; box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; flex-shrink: 0;}
         .timer-display { position: absolute; top: -30px; right: -30px; background: #e74c3c; color: white; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 35px; border: 4px solid #c0392b; box-shadow: 0 0 15px #e74c3c; z-index: 10; }
         .q-text { font-size: 26px; margin-bottom: 10px; }
@@ -18,7 +16,6 @@
         .opt-correct { background: #27ae60 !important; border-color: #2ecc71 !important; color: white; box-shadow: 0 0 15px #2ecc71;}
         #explanation { margin-top: 10px; background: #2c3e50; padding: 10px; text-align: left; display: none; font-size: 20px; border-radius:10px; }
         
-        /* 極致壓縮部落卡片，確保塞得下 */
         .tribe-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 100%; padding: 5px; flex-shrink: 0; }
         .card { background: rgba(22, 33, 62, 0.85); border: 3px solid #0f3460; padding: 5px; border-radius: 10px; width: 110px; transition: 0.3s; backdrop-filter: blur(5px); }
         .card img { width: 55px; height: 55px; object-fit: contain; image-rendering: pixelated; margin: 2px 0; }
@@ -47,7 +44,6 @@
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         @keyframes magicPulse { from { filter: hue-rotate(0deg); transform: scale(1.1); } to { filter: hue-rotate(90deg); transform: scale(1.1); } }
 
-        /* 按鈕區域給予底邊距，確保不會貼緊螢幕底部 */
         .controls-container { margin-top: 10px; padding-bottom: 20px; }
         .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 6px 0 #2980b9;}
         
@@ -104,8 +100,11 @@
         
         <div id="teacher-punish-controls" style="display:none; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; border: 4px solid #e74c3c; margin: 15px auto; width: 600px; max-width: 90%;">
             <h2 id="punish-target-name" style="color: #ff7675; margin-top:0; font-size:32px;">⚠️ 正在懲罰：</h2>
+            <h3 id="punish-pot-display" style="color: #f1c40f; margin: 10px 0; font-size: 28px;"></h3>
+            <h4 id="punish-last-warning" style="color: #ff4757; margin: 10px 0; font-size: 20px; display: none;">🔥 此為最後一個受罰部落，無路可退，只能自行承受所有傷害！</h4>
+            
             <button class="big-btn" style="background:#d63031;" onclick="socket.emit('teacher_submit_punish', 'take')">該部落自行承受傷害</button>
-            <button class="big-btn" style="background:#6c5ce7;" onclick="socket.emit('teacher_submit_punish', 'pass')">無情加倍傳遞厄運盲盒</button>
+            <button id="btn-pass-punish" class="big-btn" style="background:#6c5ce7;" onclick="socket.emit('teacher_submit_punish', 'pass')">無情加倍傳遞厄運盲盒</button>
         </div>
 
         <div class="log-box" id="punish-log"></div>
@@ -212,6 +211,19 @@
                 if(state.phase === 'punish_turn' && state.currentPunishTeam !== 'waiting') {
                     punishControls.style.display = 'block';
                     document.getElementById('punish-target-name').innerText = `⚠️ 正在懲罰：${state.teams[state.currentPunishTeam].name}`;
+                    
+                    // 【神級修改 1】顯示目前累積的天譴分數
+                    document.getElementById('punish-pot-display').innerText = `🔥 目前累積傷害：${state.punishmentPot} 分`;
+                    
+                    // 【神級修改 1】如果是最後一組，隱藏加倍按鈕，並顯示警告
+                    if(state.isLastPunish) {
+                        document.getElementById('btn-pass-punish').style.display = 'none';
+                        document.getElementById('punish-last-warning').style.display = 'block';
+                    } else {
+                        document.getElementById('btn-pass-punish').style.display = 'inline-block';
+                        document.getElementById('punish-last-warning').style.display = 'none';
+                    }
+                    
                 } else {
                     punishControls.style.display = 'none';
                 }

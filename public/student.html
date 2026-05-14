@@ -159,16 +159,21 @@
                 return;
             }
 
-            if(state.phase === 'lobby' && !myId) {
+            // 【關鍵修復】無論任何階段，只要沒有部落身分，就強制顯示登入大廳！
+            if (!myId) {
+                document.getElementById('view-game').style.display = 'none';
+                document.getElementById('view-lobby').style.display = 'block';
                 renderClaimList(state.teams);
             }
-            else if (myId) {
+            else {
+                // 如果被老師強制斷線，清除紀錄並重新顯示大廳
                 if (!state.teams[myId].connected) {
                     localStorage.removeItem('tribal_team_id');
                     myId = null;
                     document.getElementById('view-game').style.display = 'none';
                     document.getElementById('view-lobby').style.display = 'block';
                     document.getElementById('watermark').style.display = 'none';
+                    renderClaimList(state.teams);
                     return;
                 }
 
