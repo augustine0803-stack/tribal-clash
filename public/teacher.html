@@ -30,23 +30,41 @@
         .dmg-popup { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); color: #ff4757; font-size: 30px; font-weight: bold; animation: floatUp 1s forwards; pointer-events: none; z-index: 100;}
         @keyframes floatUp { 0% { opacity: 1; top: 0; } 100% { opacity: 0; top: -50px; } }
 
+        /* 中毒/魔法強效視覺：覆蓋整個卡牌背景為深紫閃爍 */
+        .anim-magic { animation: magicPulse 0.5s infinite alternate !important; border-color: #9b59b6 !important; background-color: rgba(155, 89, 182, 0.5) !important; box-shadow: 0 0 30px #9b59b6 !important; transform: scale(1.1); z-index: 10;}
+        @keyframes magicPulse { from { filter: brightness(1); transform: scale(1.1); } to { filter: brightness(1.5); transform: scale(1.1); } }
+        
+        .anim-attack { animation: attackMove 0.4s infinite alternate; border-color: #c0392b; box-shadow: 0 0 25px #c0392b; transform: scale(1.1); z-index: 10;}
+        .anim-defend { border-color: #3498db; box-shadow: 0 0 25px #3498db; transform: scale(1.1); z-index: 10;}
+        .anim-hit { animation: shake 0.3s infinite; border-color: #e74c3c; background: rgba(127, 35, 28, 0.8); }
+        .punish-highlight { border: 6px solid #e056fd !important; animation: shake 0.5s infinite; transform: scale(1.1); box-shadow: 0 0 30px #e056fd; }
+
+        @keyframes attackMove { from { transform: translateY(0) scale(1.1); } to { transform: translateY(-20px) scale(1.1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+        /* 翻牌動畫完整修復 */
+        .flip-card { background-color: transparent; width: 150px; height: 210px; perspective: 1000px; cursor: pointer; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-front, .flip-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 15px; border: 4px solid #f39c12; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 10px 20px rgba(0,0,0,0.5);}
+        .flip-front { background: url('/assets/bg_combat.png') center/cover; }
+        .flip-front-rank { font-size: 28px; color: #fff; text-shadow: 3px 3px 5px #000; font-weight: bold; background: rgba(0,0,0,0.85); border: 3px solid #f1c40f; padding: 8px 12px; border-radius: 10px; box-shadow: 0 0 15px #f1c40f; }
+        .flip-back { background: #16213e; transform: rotateY(180deg); border-color: #2ecc71; }
+        .rank-num { font-size: 24px; color: #f1c40f; margin-bottom: 5px; }
+
         .confetti-effect { animation: confettiGlow 0.5s infinite alternate; box-shadow: 0 0 30px #f1c40f !important; border-color: #f1c40f !important; }
         @keyframes confettiGlow { from { transform: scale(1); } to { transform: scale(1.05); } }
 
-        .lightning-effect { animation: lightningFlash 0.2s 3; background: #fff !important; }
-        @keyframes lightningFlash { 0% { background: #fff; } 50% { background: #e74c3c; } 100% { background: #000; } }
-        .shake-heavy { animation: shake 0.1s infinite; }
-        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-2px, -1px); } 100% { transform: translate(1px, 2px); } }
-
         .log-box { background: rgba(0,0,0,0.85); color: #f1c40f; padding: 15px; flex-grow: 1; overflow-y: auto; text-align: left; font-size: 26px; border-left: 10px solid #f1c40f; border-radius: 10px; margin: 10px auto; width: 90%; }
-        .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 5px 0 #2980b9;}
+        .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 5px 0 #2980b9; transition: opacity 0.2s;}
+        .big-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .reset-btn { position: fixed; top: 15px; left: 15px; background: #c0392b; color: white; padding: 8px 12px; border-radius: 8px; border: 2px solid white; cursor: pointer; font-size: 14px; z-index: 1000; }
         
         #view-setup { align-items: center; justify-content: center; }
     </style>
 </head>
 <body id="main-body">
-    <button class="reset-btn" onclick="if(confirm('確定要重啟遊戲嗎？所有進度與連線部落將會重置！')) socket.emit('reset_game')">🔄 遊戲重啟</button>
+    <button class="reset-btn" onclick="if(confirm('確定要重啟遊戲嗎？所有進度與連線部落將會重置！')) { safeEmit('reset_game'); }">🔄 遊戲重啟</button>
     <div id="timer-box" class="timer-display" style="display:none;">40</div>
 
     <h1 id="main-title" class="shadow-text">🔥 部落衝突：薩滿之戰 🔥</h1>
@@ -54,13 +72,13 @@
     <div id="view-setup" class="view active">
         <h2 style="font-size: 40px; margin-bottom: 20px;">設定部落數量</h2>
         <input type="number" id="teamCount" value="10" style="font-size: 60px; width: 150px; text-align: center; margin-bottom: 30px; border-radius: 15px; border: 4px solid #f39c12; background: rgba(0,0,0,0.5); color: #fff;">
-        <button class="big-btn" onclick="setupTeams()" style="padding: 20px 40px; font-size: 30px; background: #e74c3c; box-shadow: 0 8px 0 #c0392b;">初始化大廳</button>
+        <button class="big-btn" onclick="safeEmit('teacher_setup', document.getElementById('teamCount').value)" style="padding: 20px 40px; font-size: 30px; background: #e74c3c; box-shadow: 0 8px 0 #c0392b;">初始化大廳</button>
     </div>
 
     <div id="view-lobby" class="view">
         <h2>🏠 等待部落連線中...</h2>
         <div id="lobby-grid" class="tribe-grid"></div>
-        <div><button class="big-btn" style="background:#e74c3c;" onclick="startGame()">⚔️ START GAME</button></div>
+        <div><button class="big-btn" style="background:#e74c3c;" onclick="safeEmit('teacher_start')">⚔️ START GAME</button></div>
     </div>
 
     <div id="view-qna" class="view">
@@ -74,8 +92,8 @@
         </div>
         <div id="qna-grid" class="tribe-grid"></div>
         <div>
-            <button id="btn-reveal" class="big-btn" onclick="control('reveal')">👁️ 公佈解答</button>
-            <button id="btn-actions" class="big-btn" style="background:#e74c3c; display:none;" onclick="control('show_actions')">⚔️ 進入戰鬥環節</button>
+            <button id="btn-reveal" class="big-btn" onclick="safeControl('reveal')">👁️ 公佈解答</button>
+            <button id="btn-actions" class="big-btn" style="background:#e74c3c; display:none;" onclick="safeControl('show_actions')">⚔️ 進入戰鬥環節</button>
         </div>
     </div>
 
@@ -83,9 +101,9 @@
         <div id="combat-grid" class="tribe-grid"></div>
         <div class="log-box" id="combat-log"></div>
         <div>
-            <button id="btn-next-action" class="big-btn" onclick="socket.emit('combat_step')">▶️ 進行下一個動作</button>
-            <button id="btn-punish" class="big-btn" style="background:#8e44ad; display:none;" onclick="control('resolve_punishments')">💀 進入天譴環節</button>
-            <button id="btn-combat-end-round" class="big-btn" style="background:#f39c12; display:none;" onclick="control('end_round')">⏹️ 結束這回合</button>
+            <button id="btn-next-action" class="big-btn" onclick="safeEmit('combat_step')">▶️ 進行下一個動作</button>
+            <button id="btn-punish" class="big-btn" style="background:#8e44ad; display:none;" onclick="safeControl('resolve_punishments')">💀 進入天譴環節</button>
+            <button id="btn-combat-end-round" class="big-btn" style="background:#f39c12; display:none;" onclick="safeControl('end_round')">⏹️ 結束這回合</button>
         </div>
     </div>
 
@@ -94,13 +112,13 @@
         <div id="teacher-punish-controls" style="display:none; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 15px; border: 4px solid #e74c3c; margin: 10px auto; width: 80%;">
             <h2 id="punish-target-name" style="color: #ff7675; margin-top:0;">⚠️ 正在懲罰：</h2>
             <h3 id="punish-pot-display" style="color: #f1c40f;">累積傷害：</h3>
-            <button class="big-btn" style="background:#d63031;" onclick="socket.emit('teacher_submit_punish', 'take')">該部落自行承受傷害</button>
-            <button id="btn-pass-punish" class="big-btn" style="background:#6c5ce7;" onclick="socket.emit('teacher_submit_punish', 'pass')">無情加倍傳遞厄運盲盒</button>
+            <button class="big-btn" style="background:#d63031;" onclick="safeEmit('teacher_submit_punish', 'take')">該部落自行承受傷害</button>
+            <button id="btn-pass-punish" class="big-btn" style="background:#6c5ce7;" onclick="safeEmit('teacher_submit_punish', 'pass')">無情加倍傳遞厄運盲盒</button>
         </div>
         <div class="log-box" id="punish-log"></div>
         <div>
-            <button id="btn-start-magic" class="big-btn" style="background:#8e44ad; display:none;" onclick="control('start_magic')">🪄 進入魔法祭壇</button>
-            <button id="btn-punish-end-round" class="big-btn" style="background:#f39c12; display:none;" onclick="control('end_round')">⏹️ 結束這回合</button>
+            <button id="btn-start-magic" class="big-btn" style="background:#8e44ad; display:none;" onclick="safeControl('start_magic')">🪄 進入魔法祭壇</button>
+            <button id="btn-punish-end-round" class="big-btn" style="background:#f39c12; display:none;" onclick="safeControl('end_round')">⏹️ 結束這回合</button>
         </div>
     </div>
 
@@ -119,6 +137,19 @@
     <script>
         const socket = io();
         let currentQIndex = -1;
+
+        // 防呆保護機制：防止老師滑鼠連點導致跳關
+        function lockButtons() {
+            const btns = document.querySelectorAll('.big-btn');
+            btns.forEach(b => b.disabled = true);
+            setTimeout(() => { btns.forEach(b => b.disabled = false); }, 800); // 鎖定 0.8 秒
+        }
+        function safeEmit(event, data) { lockButtons(); socket.emit(event, data); }
+        function safeControl(action) {
+            lockButtons();
+            if(action === 'end_round' && currentQIndex >= 10) socket.emit('teacher_control', 'end_game');
+            else socket.emit('teacher_control', action); 
+        }
 
         socket.on('timer_update', (time) => {
             const timerEl = document.getElementById('timer-box');
@@ -153,7 +184,10 @@
                 document.getElementById('view-combat').classList.add('active');
                 renderGrid('combat-grid', state);
                 const qLen = state.combatQueue.length;
+                
+                // 【修復按鈕偷跑問題】確保動畫演完才出現下一個按鈕
                 document.getElementById('btn-next-action').style.display = (qLen > 0) ? 'inline-block' : 'none';
+                
                 if (state.phase === 'show_actions') {
                     document.getElementById('btn-punish').style.display = (qLen === 0) ? 'inline-block' : 'none';
                     document.getElementById('btn-combat-end-round').style.display = 'none';
@@ -161,6 +195,7 @@
                     document.getElementById('btn-punish').style.display = 'none';
                     if (qLen === 0) document.getElementById('btn-combat-end-round').style.display = 'inline-block';
                 }
+                
                 document.getElementById('combat-log').innerHTML = state.logs.map(l => `<p>> ${l}</p>`).join('');
                 document.getElementById('timer-box').style.display = 'none';
             }
@@ -186,17 +221,8 @@
             }
             else if (state.phase === 'round_transition') {
                 document.getElementById('view-transition').classList.add('active');
-                
-                // 【修復按鈕與標題文字】
                 const titleText = currentQIndex === -1 ? "🔥 準備進行天神試煉 🔥" : (currentQIndex === 0 ? "✨ 試煉題結束，所有部落獲得庇護血量重置 ✨" : `第 ${currentQIndex} 題 結束`);
                 document.getElementById('transition-title').innerText = titleText;
-                
-                let nextText = "";
-                if (currentQIndex === -1) nextText = "開始試煉題";
-                else if (currentQIndex === 0) nextText = "開始第 1 題";
-                else nextText = `開始第 ${currentQIndex + 1} 題`;
-                
-                document.getElementById('btn-challenge-next').innerText = nextText;
                 document.getElementById('btn-challenge-next').style.display = 'inline-block';
                 document.getElementById('countdown-text').style.display = 'none';
                 document.getElementById('timer-box').style.display = 'none';
@@ -208,14 +234,8 @@
             }
         });
 
-        function setupTeams() { socket.emit('teacher_setup', document.getElementById('teamCount').value); }
-        function startGame() { socket.emit('teacher_start'); }
-        function control(action) { 
-            if(action === 'end_round' && currentQIndex >= 10) socket.emit('teacher_control', 'end_game');
-            else socket.emit('teacher_control', action); 
-        }
-
         function startCountdown() {
+            lockButtons(); // 鎖定防呆
             let count = 3;
             document.getElementById('btn-challenge-next').style.display = 'none';
             const cdText = document.getElementById('countdown-text');
@@ -224,7 +244,7 @@
             let iv = setInterval(() => {
                 count--;
                 if(count > 0) cdText.innerText = count;
-                else { clearInterval(iv); control('next'); }
+                else { clearInterval(iv); socket.emit('teacher_control', 'next'); }
             }, 1000);
         }
 
@@ -243,7 +263,7 @@
             if(state.phase !== 'answering' && q['詳解']) { exp.style.display = 'block'; exp.innerHTML = `💡 詳解：${q['詳解']}`; } 
             else { exp.style.display = 'none'; }
             
-            // 【修復按鈕消失】重新補回按鈕切換邏輯
+            // 確保按鈕正確顯示
             document.getElementById('btn-reveal').style.display = (state.phase === 'answering') ? 'inline-block' : 'none';
             document.getElementById('btn-actions').style.display = (state.phase === 'reveal_answers') ? 'inline-block' : 'none';
         }
@@ -258,7 +278,7 @@
                 let dmgText = "";
                 if(['show_actions', 'magic_phase'].includes(state.phase) && state.currentCombatEvent) {
                     if(state.currentCombatEvent.actor === t.id || state.currentCombatEvent.target === t.id) {
-                        cardClass += ` anim-${state.currentCombatEvent.anim}`;
+                        cardClass += ` anim-${state.currentCombatEvent.anim}`; // 魔法特效會吃到 anim-magic
                         if(state.currentCombatEvent.damage && state.currentCombatEvent.actor === t.id) {
                             dmgText = `<div class="dmg-popup">-${state.currentCombatEvent.damage}</div>`;
                         }
@@ -280,10 +300,10 @@
                 const rankNum = index + 1;
                 let effectClass = "";
                 if(rankNum <= 3) effectClass = "confetti-effect";
-                if(rankNum > ranks.length - 3) effectClass = "lightning-effect-trigger";
 
+                // 【翻牌修復】最乾淨俐落的 onclick 切換
                 g.innerHTML += `
-                <div class="flip-card" id="end-card-${t.id}" onclick="handleFlip('${t.id}', ${rankNum}, ${ranks.length})">
+                <div class="flip-card" onclick="this.classList.toggle('flipped'); if(${rankNum}<=3) this.classList.add('confetti-effect');">
                     <div class="flip-card-inner">
                         <div class="flip-front">
                             <div class="flip-front-rank">第 ${rankNum} 名</div>
@@ -297,23 +317,6 @@
                     </div>
                 </div>`;
             });
-        }
-
-        function handleFlip(id, rank, total) {
-            const el = document.getElementById(`end-card-${id}`);
-            el.classList.toggle('flipped');
-            if(rank <= 3) {
-                el.classList.add('confetti-effect');
-            }
-            if(rank > total - 3) {
-                const body = document.getElementById('main-body');
-                body.classList.add('shake-heavy');
-                el.classList.add('lightning-effect');
-                setTimeout(() => {
-                    body.classList.remove('shake-heavy');
-                    el.classList.remove('lightning-effect');
-                }, 600);
-            }
         }
     </script>
 </body>

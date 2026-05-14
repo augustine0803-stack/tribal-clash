@@ -6,38 +6,26 @@
     <title>薩滿終端 - 學生端</title>
     <style>
         body { background: #1a1a2e; color: #fff; font-family: 'Impact', 'Arial Black', sans-serif; text-align: center; padding: 15px; margin: 0; position: relative;}
-        
         #watermark { position: fixed; bottom: 5%; left: 50%; transform: translateX(-50%); opacity: 0.25; z-index: -1; pointer-events: none; width: 60%; max-width: 250px; image-rendering: pixelated; display: none; }
-        
         .view { display: none; } .active { display: block; }
-        
         .tribe-btn { width: 100%; padding: 15px; margin: 10px 0; font-size: 22px; font-family: 'Impact', sans-serif; background: #30336b; color: #fff; border: 3px solid #0f3460; border-radius: 10px; }
-        
         #radar { background: rgba(0,0,0,0.8); padding: 5px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; border: 2px solid #333; }
         .radar-item { background: #30336b; padding: 3px 8px; border-radius: 6px; white-space: nowrap; font-weight: bold; }
-        
         .step-title { text-align: left; margin: 10px 0; border-bottom: 2px solid #f39c12; color: #f39c12; font-size: 22px; padding-bottom: 5px;}
-
         .tactic-grid { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-tactic { flex: 1; padding: 15px 5px; font-size: 20px; font-family: 'Impact', sans-serif; border: 4px solid transparent; border-radius: 12px; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s;}
         .btn-tactic img { width: 45px; height: 45px; margin-bottom: 5px; image-rendering: pixelated; }
         .attack { background: #c0392b; } .defend { background: #2980b9; }
         .selected { border-color: #f1c40f !important; box-shadow: 0 0 15px #f1c40f; }
-
         .ans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .btn-ans { padding: 25px 5px; font-size: 32px; font-family: 'Impact', sans-serif; background: #fff; color: #000; border: 4px solid #ccc; border-radius: 10px; transition: 0.2s;}
         .ans-selected { background: #f1c40f !important; border-color: #e67e22 !important; color: #000 !important; }
-
         .btn-submit { width: 100%; padding: 20px; font-size: 26px; background: #27ae60; color: white; border: none; border-radius: 10px; box-shadow: 0 5px 0 #2ecc71;}
         .modal-box { border: 4px solid #2ecc71; padding: 20px; border-radius: 15px; background: rgba(0,0,0,0.9); margin-top: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.5);}
-        
         .magic-card-display { background: url('/assets/bg_magic.png') center/cover; border: 5px solid #f1c40f; border-radius: 15px; padding: 20px; box-shadow: 0 0 30px #f1c40f; animation: float 2s infinite alternate;}
         @keyframes float { from { transform: translateY(0); } to { transform: translateY(-10px); } }
-
         .status-box { border: 4px solid #3498db; padding: 30px 20px; border-radius: 15px; background: rgba(0,0,0,0.9); margin-top: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-
         #result-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; flex-direction: column; align-items: center; justify-content: center; animation: zoomIn 0.3s;}
-        
         #global-debuff-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; background: rgba(192, 57, 43, 0.95); animation: flash 0.5s ease-in-out;}
         @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes flash { 0% { background: rgba(255, 255, 255, 1); } 100% { background: rgba(192, 57, 43, 0.95); } }
@@ -93,7 +81,7 @@
                 <button id="ans-C" class="btn-ans" onclick="setAns('C')">C</button>
                 <button id="ans-D" class="btn-ans" onclick="setAns('D')">D</button>
             </div>
-            <button class="btn-submit" onclick="submitFinal()">🔒 送出並鎖定</button>
+            <button id="final-submit-btn" class="btn-submit" onclick="submitFinal()">🔒 送出並鎖定</button>
         </div>
 
         <div id="locked-summary" class="modal-box" style="display:none;">
@@ -180,7 +168,6 @@
                 document.getElementById('view-lobby').style.display = 'none';
                 document.getElementById('view-game').style.display = 'block';
                 
-                // 【修復手機端進度文字顯示】
                 let displayQNum = "";
                 if (state.currentQuestionIndex === -1) displayQNum = "測試準備";
                 else if (state.currentQuestionIndex === 0) displayQNum = "試煉題";
@@ -235,7 +222,7 @@
                     showStatus('⏳ 結算完畢', '天譴結束，請看大螢幕並等待下個行動...', '#2ecc71');
                 }
                 else if (state.phase === 'magic_phase') {
-                    if (state.teams[myId].magicCard) {
+                    if (state.teams[myId].magicCard && state.teams[myId].magicCard.name) {
                         document.getElementById('magic-display').style.display = 'block';
                         document.getElementById('magic-name').innerText = state.teams[myId].magicCard.name;
                         document.getElementById('magic-desc').innerText = state.teams[myId].magicCard.desc;
@@ -272,8 +259,13 @@
 
         function setTactic(t) { tactic = t; document.getElementById('btn-attack').classList.toggle('selected', t==='attack'); document.getElementById('btn-defend').classList.toggle('selected', t==='defend'); document.getElementById('target-select').style.display = t==='attack'?'block':'none'; }
         function setAns(a) { selectedAns = a; ['A','B','C','D'].forEach(o => document.getElementById(`ans-${o}`).classList.toggle('ans-selected', a===o)); }
+        
         function submitFinal() {
             if(!tactic || !selectedAns) return alert("請完整選擇戰術與答案！");
+            
+            // 學生端按鈕防呆
+            document.getElementById('final-submit-btn').disabled = true;
+            
             socket.emit('submit_turn', { teamId: myId, action: tactic, target: document.getElementById('target-select').value, answer: selectedAns });
             
             let targetText = "無";
@@ -295,6 +287,7 @@
             document.getElementById('magic-display').style.display='none';
             document.getElementById('status-screen').style.display='none';
             document.getElementById('summary-text').innerHTML = ''; 
+            document.getElementById('final-submit-btn').disabled = false;
             
             document.getElementById('btn-attack').classList.remove('selected');
             document.getElementById('btn-defend').classList.remove('selected');
