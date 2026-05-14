@@ -124,7 +124,7 @@ io.on('connection', (socket) => {
             let id = `team${i}`;
             let tName = `${names[i-1] || i}號部落`;
             
-            // 【終極彩蛋】如果設定 10 組，強制將第 5 組改名為「天神」
+            // 【就是這行魔法】如果設定 10 組，強制將第 5 組改名為「天神」
             if (parsedCount === 10 && i === 5) {
                 tName = '天神';
             }
