@@ -39,7 +39,6 @@ async function loadQuestions() {
         Papa.parse(response.data, {
             header: true,
             complete: (results) => {
-                // 讀取前 11 題 (Q0 測試題 + 10題正式題)
                 questions = results.data.slice(0, 11); 
                 updateQuestion();
                 console.log(`✅ 題庫同步成功！共載入 ${questions.length} 題 (含測試題)`);
@@ -82,7 +81,7 @@ function startTimer() {
         });
 
         if(gameState.timeLeft <= 0) {
-            gameState.timeLeft = 0; // 強制歸零，讓畫面確實顯示 0
+            gameState.timeLeft = 0; 
             clearInterval(timerInterval);
             forceLockAll();
             io.emit('state_update', gameState);
@@ -119,10 +118,19 @@ io.on('connection', (socket) => {
         gameState.teams = {};
         gameState.currentQuestionIndex = -1;
         const names = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
-        for(let i=1; i<=count; i++) {
+        let parsedCount = parseInt(count) || 10;
+        
+        for(let i=1; i<=parsedCount; i++) {
             let id = `team${i}`;
+            let tName = `${names[i-1] || i}號部落`;
+            
+            // 【終極彩蛋】如果設定 10 組，強制將第 5 組改名為「天神」
+            if (parsedCount === 10 && i === 5) {
+                tName = '天神';
+            }
+            
             gameState.teams[id] = { 
-                id, name: `${names[i-1] || i}號部落`, hp: 10, 
+                id, name: tName, hp: 10, 
                 connected: false, locked: false, action: null, target: null, 
                 answer: null, isCorrect: false, combatAnim: null, magicCard: null, timePenalty: 0, personalLog: "",
                 prisonCount: 0
@@ -230,7 +238,6 @@ io.on('connection', (socket) => {
             gameState.phase = 'round_transition';
         }
         else if (action === 'next') {
-            // 【神級校準】如果是測試題(Q0)結束要進 Q1，把所有人血量強制補回 10
             if (gameState.currentQuestionIndex === 0) {
                 Object.values(gameState.teams).forEach(t => t.hp = 10);
             }
