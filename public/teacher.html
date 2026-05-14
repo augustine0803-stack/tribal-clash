@@ -8,11 +8,9 @@
         .view { display: none; width: 100%; height: 100%; flex-direction: column; } .active { display: flex; }
         .shadow-text { color: #f39c12; font-size: 32px; text-shadow: 3px 3px 5px #000; margin: 5px 0; }
         
-        /* 決戰時刻標題變色 */
         .final-battle-title { color: #ff4757 !important; text-shadow: 0 0 20px #ff4757; animation: pulse 1s infinite alternate; }
         @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
 
-        /* 計時器移到右上方固定，並半透明，絕對不擋字 */
         .timer-display { position: fixed; top: 20px; right: 20px; background: rgba(231, 76, 60, 0.8); color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; border: 4px solid #c0392b; box-shadow: 0 0 20px #e74c3c; z-index: 9999; }
 
         .q-card { background: rgba(26, 26, 46, 0.95); border: 4px solid #f39c12; padding: 15px 20px; border-radius: 15px; margin: 10px auto; width: 90%; max-width: 1000px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; }
@@ -29,11 +27,9 @@
         .hp { font-size: 28px; color: #e74c3c; margin: 2px 0; }
         .status { font-size: 12px; color: #aaa; background: #000; padding: 3px; border-radius: 5px; }
 
-        /* 跳血特效文字 */
         .dmg-popup { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); color: #ff4757; font-size: 30px; font-weight: bold; animation: floatUp 1s forwards; pointer-events: none; z-index: 100;}
         @keyframes floatUp { 0% { opacity: 1; top: 0; } 100% { opacity: 0; top: -50px; } }
 
-        /* 撒花與雷劈動畫 */
         .confetti-effect { animation: confettiGlow 0.5s infinite alternate; box-shadow: 0 0 30px #f1c40f !important; border-color: #f1c40f !important; }
         @keyframes confettiGlow { from { transform: scale(1); } to { transform: scale(1.05); } }
 
@@ -45,6 +41,9 @@
         .log-box { background: rgba(0,0,0,0.85); color: #f1c40f; padding: 15px; flex-grow: 1; overflow-y: auto; text-align: left; font-size: 26px; border-left: 10px solid #f1c40f; border-radius: 10px; margin: 10px auto; width: 90%; }
         .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 5px 0 #2980b9;}
         .reset-btn { position: fixed; top: 15px; left: 15px; background: #c0392b; color: white; padding: 8px 12px; border-radius: 8px; border: 2px solid white; cursor: pointer; font-size: 14px; z-index: 1000; }
+        
+        /* 確保 Setup 視窗內容完美置中 */
+        #view-setup { align-items: center; justify-content: center; }
     </style>
 </head>
 <body id="main-body">
@@ -54,9 +53,9 @@
     <h1 id="main-title" class="shadow-text">🔥 部落衝突：薩滿之戰 🔥</h1>
 
     <div id="view-setup" class="view active">
-        <h2>設定部落數量</h2>
-        <input type="number" id="teamCount" value="10" style="font-size: 45px; width: 100px; text-align: center;"><br>
-        <button class="big-btn" onclick="setupTeams()">初始化大廳</button>
+        <h2 style="font-size: 40px; margin-bottom: 20px;">設定部落數量</h2>
+        <input type="number" id="teamCount" value="10" style="font-size: 60px; width: 150px; text-align: center; margin-bottom: 30px; border-radius: 15px; border: 4px solid #f39c12; background: rgba(0,0,0,0.5); color: #fff;">
+        <button class="big-btn" onclick="setupTeams()" style="padding: 20px 40px; font-size: 30px; background: #e74c3c; box-shadow: 0 8px 0 #c0392b;">初始化大廳</button>
     </div>
 
     <div id="view-lobby" class="view">
@@ -268,6 +267,10 @@
             const g = document.getElementById('endgame-grid'); g.innerHTML = '';
             ranks.forEach((t, index) => {
                 const rankNum = index + 1;
+                let effectClass = "";
+                if(rankNum <= 3) effectClass = "confetti-effect";
+                if(rankNum > ranks.length - 3) effectClass = "lightning-effect-trigger";
+
                 g.innerHTML += `
                 <div class="flip-card" id="end-card-${t.id}" onclick="handleFlip('${t.id}', ${rankNum}, ${ranks.length})">
                     <div class="flip-card-inner">
