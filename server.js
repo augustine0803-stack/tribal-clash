@@ -120,14 +120,17 @@ io.on('connection', (socket) => {
             gameState.teams[id] = { 
                 id, name: `${names[i-1] || i}號部落`, hp: 10, 
                 connected: false, locked: false, action: null, target: null, 
-                answer: null, isCorrect: false, combatAnim: null, magicCard: null, timePenalty: 0, personalLog: "" 
+                answer: null, isCorrect: false, combatAnim: null, magicCard: null, timePenalty: 0, personalLog: "",
+                prisonCount: 0
             };
         }
         io.emit('state_update', gameState);
     });
 
     socket.on('claim_team', (teamId) => {
-        if (gameState.teams[teamId] && !gameState.teams[teamId].connected) {
+        // 【關鍵修復】拔除 !gameState.teams[teamId].connected 的限制
+        // 無論伺服器認為該部落是否在線，只要學生送出請求，直接強制讓他接管並更新畫面！
+        if (gameState.teams[teamId]) {
             gameState.teams[teamId].connected = true;
             socket.emit('claim_success', {teamId, name: gameState.teams[teamId].name});
             io.emit('state_update', gameState);
@@ -168,21 +171,32 @@ io.on('connection', (socket) => {
         if(choice === 'take') {
             team.hp -= gameState.punishmentPot;
             gameState.logs.push(`💀 ${team.name} 自行承受天譴，扣除 ${gameState.punishmentPot} 分！`);
+            gameState.punishQueue = []; 
+
         } else if (choice === 'pass') {
             gameState.punishmentPot *= 2; 
             const allTeams = Object.values(gameState.teams);
             const randomTeam = allTeams[Math.floor(Math.random()*allTeams.length)];
             const pts = Math.floor(Math.random() * 3) + 1; 
             
-            const debuffTypes = [
-                () => { team.timePenalty = 5; return "【時空扭曲】自己部落下一題作答時間減少 5 秒！"; },
-                () => { randomTeam.hp += pts; return `【幸運泉湧】隨機使 ${randomTeam.name} 獲得 ${pts} 分！`; },
-                () => { randomTeam.hp -= pts; return `【厄運蔓延】隨機使 ${randomTeam.name} 流失 ${pts} 分！`; },
-                () => { return `【囚禁之地】請 ${team.name} 派一名隊員至講台上，該名隊員強制登出遊戲！`; } 
-            ];
-            const res = debuffTypes[Math.floor(Math.random() * debuffTypes.length)]();
-            gameState.logs.push(`☠️ ${team.name} 無情傳遞天譴！觸發：${res}`);
+            let roll = Math.floor(Math.random() * 10);
+            let res = "";
+            if (roll < 3) {
+                team.timePenalty = 5; res = "【時空扭曲】自己部落下一題作答時間減少 5 秒！";
+            } else if (roll < 6) {
+                randomTeam.hp += pts; res = `【幸運泉湧】隨機使 ${randomTeam.name} 獲得 ${pts} 分！`;
+            } else if (roll < 9) {
+                randomTeam.hp -= pts; res = `【厄運蔓延】隨機使 ${randomTeam.name} 流失 ${pts} 分！`;
+            } else {
+                if (team.prisonCount < 2) {
+                    team.prisonCount++;
+                    res = `【囚禁之地】請 ${team.name} 派一名隊員至講台上，該名隊員強制登出遊戲！`;
+                } else {
+                    randomTeam.hp -= pts; res = `【厄運蔓延】隨機使 ${randomTeam.name} 流失 ${pts} 分！`;
+                }
+            }
             
+            gameState.logs.push(`☠️ ${team.name} 無情傳遞天譴！觸發：${res}`);
             io.emit('global_debuff', `🚨 突發狀況 🚨\n${res}`);
         }
 
