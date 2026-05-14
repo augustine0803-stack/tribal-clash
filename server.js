@@ -84,6 +84,7 @@ function startTimer() {
             gameState.timeLeft = 0; 
             clearInterval(timerInterval);
             forceLockAll();
+            io.emit('timer_update', 0); // 【修復】強制廣播 0 秒給所有畫面
             io.emit('state_update', gameState);
         } else {
             io.emit('timer_update', gameState.timeLeft);
@@ -124,15 +125,14 @@ io.on('connection', (socket) => {
             let id = `team${i}`;
             let tName = `${names[i-1] || i}號部落`;
             
-            if (parsedCount === 10 && i === 5) {
-                tName = '天神';
-            }
+            if (parsedCount === 10 && i === 5) tName = '天神';
             
             gameState.teams[id] = { 
                 id, name: tName, hp: 10, 
                 connected: false, locked: false, action: null, target: null, 
                 answer: null, isCorrect: false, combatAnim: null, magicCard: null, timePenalty: 0, personalLog: "",
-                prisonCount: 0
+                prisonCount: 0,
+                attacksOnGod: 0 // 【新增】追蹤攻擊天神的次數
             };
         }
         io.emit('state_update', gameState);
@@ -255,18 +255,34 @@ function prepareCombatSequence() {
     const teams = Object.values(gameState.teams);
     let attackersMap = {}; 
     teams.forEach(t => attackersMap[t.id] = []);
+    
+    // 統計攻擊與天神反噬次數
     teams.forEach(t => {
+        if (gameState.currentQuestionIndex > 0) {
+            if (t.isCorrect && t.action === 'attack' && t.target) {
+                const targetTeam = gameState.teams[t.target];
+                if (targetTeam && targetTeam.name === '天神') {
+                    t.attacksOnGod++;
+                } else {
+                    t.attacksOnGod = 0; // 打別人就歸零
+                }
+            } else {
+                t.attacksOnGod = 0; // 防禦或答錯就歸零
+            }
+        }
+
         if(t.isCorrect && t.action === 'attack' && t.target) attackersMap[t.target].push(t.name);
     });
+
+    // 處理基本攻防
     teams.forEach(t => {
         let incomingAttackers = attackersMap[t.id];
         let dmg = incomingAttackers.length;
         let isDefending = (t.isCorrect && t.action === 'defend');
         if (incomingAttackers.length === 0 && !isDefending) {
             t.personalLog = "🛡️ 此回合無人攻擊你，安然無恙。";
-            return;
         } 
-        if (isDefending) {
+        else if (isDefending) {
             dmg = 0;
             gameState.combatQueue.push({ actor: t.id, anim: 'defend', log: `⚔️ 【${t.name}】完美防禦！擋下了來自 ${incomingAttackers.length > 0 ? incomingAttackers.join('、') : '空氣'} 的攻擊！` });
             t.personalLog = `🛡️ 完美防禦！成功擋下了攻擊！`;
@@ -277,6 +293,21 @@ function prepareCombatSequence() {
                 damage: dmg 
             });
             t.personalLog = `💥 遭到攻擊，扣除 ${dmg} 分！`;
+        }
+    });
+
+    // 【新增】處理天神反噬 (接在基本攻擊之後演出)
+    teams.forEach(t => {
+        if (t.attacksOnGod >= 2) {
+            let godDamage = Math.floor(Math.random() * 10) + 1;
+            gameState.combatQueue.push({
+                actor: t.id,
+                anim: 'magic', // 用魔法中毒特效展示反噬
+                log: `⚡ 【天神反噬】${t.name} 連續觸怒天威，遭反噬扣除 ${godDamage} 分！`,
+                applyFunc: () => { gameState.teams[t.id].hp -= godDamage; },
+                damage: godDamage
+            });
+            t.attacksOnGod = 0; // 觸發後重新計算
         }
     });
 }
@@ -311,6 +342,7 @@ function prepareMagicSequence() {
     gameState.combatQueue = [];
     const correctTeams = Object.values(gameState.teams).filter(t => t.isCorrect);
     const allTeams = Object.values(gameState.teams);
+    
     const magicCards = [
         { id: 'swap', name: '靈魂枷鎖·命運交錯', desc: '強制與隨機一組互換分數', action: (actor) => {
             const target = allTeams[Math.floor(Math.random()*allTeams.length)];
@@ -331,27 +363,32 @@ function prepareMagicSequence() {
             gameState.combatQueue.push({ actor: actor.id, anim: 'hit', log: `💀 【${actor.name}】發動魔法！自身分數瞬間歸零！`, applyFunc: () => { actor.hp = 0; }});
         }}
     ];
+    
     const x10Card = { id: 'x10', name: '神之手·十倍界王拳', desc: '隨機一組尾數加個零(x10)', action: (actor) => {
         const target = allTeams[Math.floor(Math.random()*allTeams.length)];
         gameState.combatQueue.push({ actor: actor.id, target: target.id, anim: 'magic', log: `🔥 【${actor.name}】發動《十倍界王拳》！${target.name} 分數暴增十倍！`, applyFunc: () => { if(target.hp !== 0) target.hp = target.hp * 10; }});
     }};
+    
     if(correctTeams.length === 0) {
         gameState.combatQueue.push({ anim: null, log: `🌪️ 無人答對，魔法祭壇無法啟動...`});
         return;
     }
+
+    // 【修復】徹底洗牌，確保 x10 魔法卡真正隨機分配
+    let shuffledCorrectTeams = shuffleArray([...correctTeams]);
+    
     if (gameState.currentQuestionIndex === 10) { 
-        // 修正傳遞給學生的魔法卡物件，過濾掉無法傳輸的 action 函數
-        correctTeams[0].magicCard = { id: x10Card.id, name: x10Card.name, desc: x10Card.desc };
-        x10Card.action(correctTeams[0]);
-        for(let i=1; i<correctTeams.length; i++) {
+        shuffledCorrectTeams[0].magicCard = { id: x10Card.id, name: x10Card.name, desc: x10Card.desc };
+        x10Card.action(shuffledCorrectTeams[0]);
+        for(let i=1; i<shuffledCorrectTeams.length; i++) {
             let rc = magicCards[Math.floor(Math.random() * magicCards.length)];
-            correctTeams[i].magicCard = { id: rc.id, name: rc.name, desc: rc.desc }; 
-            rc.action(correctTeams[i]);
+            shuffledCorrectTeams[i].magicCard = { id: rc.id, name: rc.name, desc: rc.desc }; 
+            rc.action(shuffledCorrectTeams[i]);
         }
     } else {
-        correctTeams.forEach(t => {
+        shuffledCorrectTeams.forEach(t => {
             let rc = magicCards[Math.floor(Math.random() * magicCards.length)];
-            t.magicCard = { id: rc.id, name: rc.name, desc: rc.desc }; // 確保手機端能收到文字
+            t.magicCard = { id: rc.id, name: rc.name, desc: rc.desc }; 
             rc.action(t);
         });
     }
