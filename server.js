@@ -16,7 +16,7 @@ const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=ou
 let questions = [];
 
 let gameState = {
-    currentQuestionIndex: 0,
+    currentQuestionIndex: -1, // 【修改】初始設定為 -1，讓第一題有緩衝空間
     phase: 'setup', 
     teams: {},
     question: null,
@@ -49,8 +49,10 @@ async function loadQuestions() {
 loadQuestions();
 
 function updateQuestion() {
-    if(questions[gameState.currentQuestionIndex]) {
+    if(gameState.currentQuestionIndex >= 0 && questions[gameState.currentQuestionIndex]) {
         gameState.question = questions[gameState.currentQuestionIndex];
+    } else {
+        gameState.question = null;
     }
 }
 
@@ -102,7 +104,7 @@ io.on('connection', (socket) => {
 
     socket.on('reset_game', () => {
         clearInterval(timerInterval);
-        gameState.currentQuestionIndex = 0;
+        gameState.currentQuestionIndex = -1;
         gameState.phase = 'setup';
         gameState.teams = {};
         gameState.logs = [];
@@ -113,7 +115,7 @@ io.on('connection', (socket) => {
     socket.on('teacher_setup', (count) => {
         gameState.phase = 'lobby';
         gameState.teams = {};
-        gameState.currentQuestionIndex = 0;
+        gameState.currentQuestionIndex = -1;
         const names = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
         for(let i=1; i<=count; i++) {
             let id = `team${i}`;
@@ -128,8 +130,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('claim_team', (teamId) => {
-        // 【關鍵修復】拔除 !gameState.teams[teamId].connected 的限制
-        // 無論伺服器認為該部落是否在線，只要學生送出請求，直接強制讓他接管並更新畫面！
         if (gameState.teams[teamId]) {
             gameState.teams[teamId].connected = true;
             socket.emit('claim_success', {teamId, name: gameState.teams[teamId].name});
@@ -145,9 +145,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('teacher_start', () => {
-        gameState.phase = 'answering';
+        // 【修改】開始遊戲後，先進緩衝畫面，不要直接出題倒數
+        gameState.phase = 'round_transition';
         gameState.logs = [];
-        startTimer();
+        io.emit('state_update', gameState);
     });
 
     socket.on('submit_turn', (data) => {
