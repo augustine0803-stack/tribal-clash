@@ -180,15 +180,13 @@
                 document.getElementById('view-lobby').style.display = 'none';
                 document.getElementById('view-game').style.display = 'block';
                 
-                // 【修改】動態處理題號，避免一開始出現 0 / 10
-                let displayQNum = state.currentQuestionIndex >= 0 ? state.currentQuestionIndex + 1 : 1;
-                document.getElementById('q-number').innerText = `進度：第 ${displayQNum} / 10 題`;
+                // 動態處理題號
+                let displayQNum = state.currentQuestionIndex === 0 ? "試煉題" : `第 ${state.currentQuestionIndex} 題`;
+                document.getElementById('q-number').innerText = `進度：${displayQNum}`;
                 
-                // 【關鍵修改】對調 resetUI 與 renderRadar 的順序，秒解選單消失 Bug！
                 if(state.phase === 'answering' && phase !== 'answering') resetUI();
                 if(state.phase === 'reveal_answers' && phase === 'answering') showResult(state.teams[myId].isCorrect);
                 
-                // 放後面才能確保生成選單不會被 resetUI 砍掉
                 renderRadar(state.teams);
                 
                 document.getElementById('turn-controls').style.display = 'none';
@@ -242,9 +240,10 @@
                     }
                 }
                 else if (state.phase === 'round_transition') {
-                    // 【修改】為第一回合開場與後續回合設定不同文字
                     if (state.currentQuestionIndex === -1) {
                         showStatus('⏳ 準備就緒', `遊戲即將開始，請看大螢幕倒數...`, '#f39c12');
+                    } else if (state.currentQuestionIndex === 0) {
+                        showStatus('✅ 試煉結束', `即將進入正式賽，天神已重置所有部落血量！`, '#2ecc71');
                     } else {
                         showStatus('✅ 本回合結束', `準備進入下一題，深呼吸...`, '#f1c40f');
                     }
