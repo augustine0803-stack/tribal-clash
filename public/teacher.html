@@ -4,67 +4,65 @@
     <meta charset="UTF-8">
     <title>部落衝突 - 2.0 大螢幕</title>
     <style>
-        body { background-color: #0b0e14; background-size: cover; background-position: center; background-attachment: fixed; color: #fff; font-family: 'Impact', 'Arial Black', sans-serif; margin: 0; padding: 20px; text-align: center; transition: background-image 0.5s ease-in-out; overflow-x: hidden;}
-        .view { display: none; } .active { display: block; }
-        .shadow-text { color: #f39c12; font-size: 45px; text-shadow: 3px 3px 5px rgba(0,0,0,0.8); margin-top: 0; }
+        body { height: 100vh; overflow: hidden; background-color: #0b0e14; background-size: cover; background-position: center; background-attachment: fixed; color: #fff; font-family: 'Impact', 'Arial Black', sans-serif; margin: 0; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; text-align: center; transition: background-image 0.5s ease-in-out; }
+        .view { display: none; width: 100%; height: 100%; flex-direction: column; } .active { display: flex; }
+        .shadow-text { color: #f39c12; font-size: 35px; text-shadow: 3px 3px 5px rgba(0,0,0,0.8); margin: 0 0 10px 0; flex-shrink: 0; }
         
-        .q-card { background: rgba(26, 26, 46, 0.95); border: 4px solid #f39c12; padding: 30px; border-radius: 15px; margin: 0 auto 30px auto; max-width: 1000px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative;}
-        .timer-display { position: absolute; top: -30px; right: -30px; background: #e74c3c; color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; border: 4px solid #c0392b; box-shadow: 0 0 15px #e74c3c; z-index: 10; }
-        .q-text { font-size: 36px; margin-bottom: 20px; }
-        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 28px; text-align: left; }
-        .opt { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; border: 3px solid #333; transition: 0.3s; }
+        .q-card { background: rgba(26, 26, 46, 0.95); border: 4px solid #f39c12; padding: 15px; border-radius: 15px; margin: 0 auto 10px auto; max-width: 1000px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; flex-shrink: 0;}
+        .timer-display { position: absolute; top: -20px; right: -20px; background: #e74c3c; color: white; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 35px; border: 4px solid #c0392b; box-shadow: 0 0 15px #e74c3c; z-index: 10; }
+        .q-text { font-size: 30px; margin-bottom: 10px; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 24px; text-align: left; }
+        .opt { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; border: 3px solid #333; transition: 0.3s; }
         .opt-correct { background: #27ae60 !important; border-color: #2ecc71 !important; color: white; box-shadow: 0 0 15px #2ecc71;}
         
-        .tribe-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 100%; padding: 10px; }
-        .card { background: rgba(22, 33, 62, 0.85); border: 4px solid #0f3460; padding: 15px; border-radius: 15px; width: 160px; transition: 0.3s; backdrop-filter: blur(5px); }
-        .card img { width: 100px; height: 100px; object-fit: contain; image-rendering: pixelated; margin: 10px 0; }
-        .card h3 { margin: 0; color: #00d2ff; font-size: 22px; text-shadow: 2px 2px #000; }
-        .hp { font-size: 45px; color: #e74c3c; margin: 10px 0; text-shadow: 2px 2px #000; }
-        .status { font-size: 16px; color: #aaa; background: #000; padding: 5px; border-radius: 5px; }
+        .tribe-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 100%; padding: 5px; flex-shrink: 0; }
+        .card { background: rgba(22, 33, 62, 0.85); border: 3px solid #0f3460; padding: 5px 10px; border-radius: 12px; width: 120px; transition: 0.3s; backdrop-filter: blur(5px); }
+        .card img { width: 60px; height: 60px; object-fit: contain; image-rendering: pixelated; margin: 5px 0; }
+        .card h3 { margin: 0; color: #00d2ff; font-size: 18px; text-shadow: 2px 2px #000; }
+        .hp { font-size: 32px; color: #e74c3c; margin: 5px 0; text-shadow: 2px 2px #000; }
+        .status { font-size: 14px; color: #aaa; background: #000; padding: 4px; border-radius: 5px; line-height: 1.2;}
         
-        /* --- 終局卡牌翻轉特效 --- */
-        .flip-card { background-color: transparent; width: 180px; height: 250px; perspective: 1000px; cursor: pointer; }
+        .log-box { background: rgba(0,0,0,0.85); color: #f1c40f; padding: 20px; flex-grow: 1; min-height: 150px; overflow-y: auto; text-align: left; font-size: 34px; line-height: 1.5; border-left: 10px solid #f1c40f; border-radius: 10px; margin: 10px auto; width: 90%; max-width: 1100px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.8);}
+        
+        .flip-card { background-color: transparent; width: 160px; height: 220px; perspective: 1000px; cursor: pointer; }
         .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
         .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
         .flip-front, .flip-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 15px; border: 4px solid #f39c12; display: flex; align-items: center; justify-content: center; flex-direction: column; box-shadow: 0 10px 20px rgba(0,0,0,0.5);}
         .flip-front { background: url('/assets/bg_combat.png') center/cover; }
-        /* 移除巨型問號，改為超帥的名牌設計 */
-        .flip-front-rank { font-size: 40px; color: #fff; text-shadow: 3px 3px 5px #000; font-weight: bold; background: rgba(0,0,0,0.85); border: 3px solid #f1c40f; padding: 15px 25px; border-radius: 15px; box-shadow: 0 0 20px #f1c40f; }
+        .flip-front-rank { font-size: 32px; color: #fff; text-shadow: 3px 3px 5px #000; font-weight: bold; background: rgba(0,0,0,0.85); border: 3px solid #f1c40f; padding: 10px 15px; border-radius: 15px; box-shadow: 0 0 20px #f1c40f; }
         .flip-back { background: #16213e; transform: rotateY(180deg); border-color: #2ecc71; }
-        .rank-num { font-size: 30px; color: #f1c40f; margin-bottom: 10px; }
+        .rank-num { font-size: 26px; color: #f1c40f; margin-bottom: 10px; }
 
-        .anim-attack { animation: attackMove 0.4s infinite alternate; border-color: #c0392b; box-shadow: 0 0 25px #c0392b; }
-        .anim-defend { border-color: #3498db; box-shadow: 0 0 25px #3498db; }
+        .anim-attack { animation: attackMove 0.4s infinite alternate; border-color: #c0392b; box-shadow: 0 0 25px #c0392b; transform: scale(1.1); z-index: 10;}
+        .anim-defend { border-color: #3498db; box-shadow: 0 0 25px #3498db; transform: scale(1.1); z-index: 10;}
         .anim-hit { animation: shake 0.3s infinite; border-color: #e74c3c; background: rgba(127, 35, 28, 0.8); }
-        .anim-magic { animation: magicPulse 0.5s infinite alternate; border-color: #9b59b6; box-shadow: 0 0 30px #9b59b6; }
-        .punish-highlight { border: 8px solid #e056fd !important; animation: shake 0.5s infinite; transform: scale(1.1); box-shadow: 0 0 30px #e056fd; }
+        .anim-magic { animation: magicPulse 0.5s infinite alternate; border-color: #9b59b6; box-shadow: 0 0 30px #9b59b6; transform: scale(1.1); z-index: 10;}
+        .punish-highlight { border: 6px solid #e056fd !important; animation: shake 0.5s infinite; transform: scale(1.1); box-shadow: 0 0 30px #e056fd; }
 
-        @keyframes attackMove { from { transform: translateY(0); } to { transform: translateY(-30px); } }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-15px); } 75% { transform: translateX(15px); } }
-        @keyframes magicPulse { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(90deg); } }
+        @keyframes attackMove { from { transform: translateY(0) scale(1.1); } to { transform: translateY(-20px) scale(1.1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        @keyframes magicPulse { from { filter: hue-rotate(0deg); transform: scale(1.1); } to { filter: hue-rotate(90deg); transform: scale(1.1); } }
 
         .big-btn { font-family: 'Impact', sans-serif; padding: 15px 30px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 26px; margin: 10px; box-shadow: 0 6px 0 #2980b9;}
-        .log-box { background: rgba(0,0,0,0.85); color: #f1c40f; padding: 20px; height: 150px; overflow-y: auto; text-align: left; font-size: 24px; border-left: 10px solid #f1c40f; border-radius: 10px; margin: 20px auto; max-width: 1000px;}
-        
         .reset-btn { position: fixed; top: 15px; left: 15px; background: #c0392b; color: white; padding: 10px 15px; border-radius: 8px; border: 2px solid white; cursor: pointer; font-size: 16px; font-family: 'Impact', sans-serif; z-index: 1000; box-shadow: 0 4px #7f8c8d; }
-        .kick-btn { margin-top: 10px; padding: 5px 10px; background: #c0392b; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: 'Impact', sans-serif; }
+        .kick-btn { margin-top: 5px; padding: 3px 8px; font-size:12px; background: #c0392b; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: 'Impact', sans-serif; }
     </style>
 </head>
 <body>
-    <button class="reset-btn" onclick="if(confirm('確定要重啟遊戲嗎？所有進度與連線將會重置！')) socket.emit('reset_game')">🔄 遊戲重啟</button>
+    <button class="reset-btn" onclick="if(confirm('確定要重啟遊戲嗎？所有進度與連線部落將會重置！')) socket.emit('reset_game')">🔄 遊戲重啟</button>
 
     <h1 id="main-title" class="shadow-text">🔥 部落衝突：薩滿之戰 🔥</h1>
 
     <div id="view-setup" class="view active">
         <h2>設定部落數量</h2>
-        <input type="number" id="teamCount" value="10" style="font-size: 45px; width: 100px; text-align: center;"><br>
+        <input type="number" id="teamCount" value="10" style="font-size: 45px; width: 100px; text-align: center; margin: 20px auto;"><br>
         <button class="big-btn" onclick="setupTeams()">初始化大廳</button>
     </div>
 
     <div id="view-lobby" class="view">
-        <h2>🏠 等待部落連線...</h2>
-        <div id="lobby-grid" class="tribe-grid"></div><br>
-        <button class="big-btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="startGame()">⚔️ START GAME</button>
+        <h2>🏠 等待部落連線中...</h2>
+        <div id="lobby-grid" class="tribe-grid"></div>
+        <div><button class="big-btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="startGame()">⚔️ START GAME</button></div>
     </div>
 
     <div id="view-qna" class="view">
@@ -75,35 +73,51 @@
                 <div class="opt" id="opt-A">A: </div><div class="opt" id="opt-B">B: </div>
                 <div class="opt" id="opt-C">C: </div><div class="opt" id="opt-D">D: </div>
             </div>
-            <div id="explanation" style="margin-top: 20px; background: #2c3e50; padding: 20px; text-align: left; display: none; font-size: 24px; border-radius:10px;"></div>
+            <div id="explanation" style="margin-top: 10px; background: #2c3e50; padding: 15px; text-align: left; display: none; font-size: 22px; border-radius:10px;"></div>
         </div>
-        <div id="qna-grid" class="tribe-grid"></div><br>
-        <button id="btn-reveal" class="big-btn" onclick="control('reveal')">👁️ 1. 公佈解答</button>
-        <button id="btn-actions" class="big-btn" style="background:#e74c3c; display:none; box-shadow: 0 6px 0 #c0392b;" onclick="control('show_actions')">⚔️ 2. 進入戰鬥展演</button>
+        <div id="qna-grid" class="tribe-grid"></div>
+        <div>
+            <button id="btn-reveal" class="big-btn" onclick="control('reveal')">👁️ 公佈解答</button>
+            <button id="btn-actions" class="big-btn" style="background:#e74c3c; display:none; box-shadow: 0 6px 0 #c0392b;" onclick="control('show_actions')">⚔️ 進入戰鬥環節</button>
+        </div>
     </div>
 
     <div id="view-combat" class="view">
         <div id="combat-grid" class="tribe-grid"></div>
-        <br>
-        <button id="btn-next-action" class="big-btn" onclick="socket.emit('combat_step')">▶️ 播放下一個動作</button>
-        <button id="btn-punish" class="big-btn" style="background:#8e44ad; display:none; box-shadow: 0 6px 0 #732d91;" onclick="control('resolve_punishments')">💀 3. 進入天譴環節</button>
-        <button id="btn-combat-next" class="big-btn" style="background:#2ecc71; display:none; box-shadow: 0 6px 0 #27ae60;" onclick="control('next')">➡️ 5. 開始下一題</button>
-        <button id="btn-combat-end" class="big-btn" style="background:#f1c40f; display:none; box-shadow: 0 6px 0 #d4ac0d;" onclick="control('end_game')">🏆 5. 進入最終結算</button>
         <div class="log-box" id="combat-log"></div>
+        <div>
+            <button id="btn-next-action" class="big-btn" onclick="socket.emit('combat_step')">▶️ 進行下一個動作</button>
+            <button id="btn-punish" class="big-btn" style="background:#8e44ad; display:none; box-shadow: 0 6px 0 #732d91;" onclick="control('resolve_punishments')">💀 進入天譴環節</button>
+            <button id="btn-combat-end-round" class="big-btn" style="background:#f39c12; display:none;" onclick="control('end_round')">⏹️ 結束這回合</button>
+        </div>
     </div>
 
     <div id="view-punish" class="view">
         <div id="punish-grid" class="tribe-grid"></div>
-        <br>
-        <button id="btn-start-magic" class="big-btn" style="background:#8e44ad; display:none; box-shadow: 0 6px 0 #732d91;" onclick="control('start_magic')">🪄 4. 進入魔法祭壇</button>
-        <button id="btn-punish-next" class="big-btn" style="background:#2ecc71; display:none; box-shadow: 0 6px 0 #27ae60;" onclick="control('next')">➡️ 4. 開始下一題</button>
-        <button id="btn-punish-end" class="big-btn" style="background:#f1c40f; display:none; box-shadow: 0 6px 0 #d4ac0d;" onclick="control('end_game')">🏆 4. 進入最終結算</button>
+        
+        <div id="teacher-punish-controls" style="display:none; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; border: 4px solid #e74c3c; margin: 15px auto; width: 600px;">
+            <h2 id="punish-target-name" style="color: #ff7675; margin-top:0; font-size:36px;">⚠️ 正在懲罰：</h2>
+            <button class="big-btn" style="background:#d63031;" onclick="socket.emit('teacher_submit_punish', 'take')">該部落自行承受傷害</button>
+            <button class="big-btn" style="background:#6c5ce7;" onclick="socket.emit('teacher_submit_punish', 'pass')">無情加倍傳遞厄運盲盒</button>
+        </div>
+
         <div class="log-box" id="punish-log"></div>
+        
+        <div>
+            <button id="btn-start-magic" class="big-btn" style="background:#8e44ad; display:none; box-shadow: 0 6px 0 #732d91;" onclick="control('start_magic')">🪄 進入魔法祭壇</button>
+            <button id="btn-punish-end-round" class="big-btn" style="background:#f39c12; display:none;" onclick="control('end_round')">⏹️ 結束這回合</button>
+        </div>
     </div>
 
-    <div id="view-endgame" class="view">
-        <h2 style="font-size: 50px; color: #f1c40f; text-shadow: 3px 3px #000;">🏆 終局結算排行榜 🏆</h2>
-        <div id="endgame-grid" class="tribe-grid" style="gap: 30px;"></div>
+    <div id="view-transition" class="view" style="justify-content: center; align-items: center;">
+        <h1 style="font-size: 80px; color: #f1c40f; text-shadow: 5px 5px 10px #000;" id="transition-title">第 X 題 結束</h1>
+        <button id="btn-challenge-next" class="big-btn" style="font-size: 50px; padding: 30px 60px; background: #e74c3c; box-shadow: 0 10px 0 #c0392b; border-radius: 20px;" onclick="startCountdown()">準備挑戰第 X+1 題</button>
+        <h1 id="countdown-text" style="font-size: 150px; color: #fff; text-shadow: 5px 5px 10px #000; display: none; margin:0;">3</h1>
+    </div>
+
+    <div id="view-endgame" class="view" style="justify-content: center;">
+        <h2 style="font-size: 50px; color: #f1c40f; text-shadow: 3px 3px #000; margin: 20px 0;">🏆 終局結算排行榜 🏆</h2>
+        <div id="endgame-grid" class="tribe-grid" style="gap: 30px; justify-content: center; align-items: center;"></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -136,6 +150,9 @@
             } else if (state.phase === 'magic_phase') {
                 document.body.style.backgroundImage = "url('/assets/bg_combat.png')";
                 document.getElementById('main-title').style.display = 'none';
+            } else if (state.phase === 'round_transition' || state.phase === 'end_game') {
+                document.body.style.backgroundImage = "none";
+                document.getElementById('main-title').style.display = 'none';
             } else {
                 document.body.style.backgroundImage = "none";
                 document.getElementById('main-title').style.display = 'block';
@@ -161,52 +178,58 @@
                 
                 if (state.phase === 'show_actions') {
                     document.getElementById('btn-punish').style.display = (qLen === 0) ? 'inline-block' : 'none';
-                    document.getElementById('btn-combat-next').style.display = 'none';
-                    document.getElementById('btn-combat-end').style.display = 'none';
+                    document.getElementById('btn-combat-end-round').style.display = 'none';
                 } else {
                     document.getElementById('btn-punish').style.display = 'none';
                     if (qLen === 0) {
-                        if (currentQIndex >= 9) {
-                            document.getElementById('btn-combat-end').style.display = 'inline-block';
-                            document.getElementById('btn-combat-next').style.display = 'none';
-                        } else {
-                            document.getElementById('btn-combat-next').style.display = 'inline-block';
-                            document.getElementById('btn-combat-end').style.display = 'none';
-                        }
+                        document.getElementById('btn-combat-end-round').style.display = 'inline-block';
+                        if(currentQIndex >= 9) document.getElementById('btn-combat-end-round').innerText = '🏆 進入最終結算';
                     } else {
-                        document.getElementById('btn-combat-next').style.display = 'none';
-                        document.getElementById('btn-combat-end').style.display = 'none';
+                        document.getElementById('btn-combat-end-round').style.display = 'none';
                     }
                 }
                 
-                document.getElementById('combat-log').innerHTML = state.logs.map(l => `<p>> ${l}</p>`).join('');
-                document.getElementById('combat-log').scrollTop = document.getElementById('combat-log').scrollHeight;
+                const logBox = document.getElementById('combat-log');
+                logBox.innerHTML = state.logs.map(l => `<p style="margin:5px 0;">> ${l}</p>`).join('');
+                logBox.scrollTop = logBox.scrollHeight;
             }
             else if (['punish_turn', 'punishments_done'].includes(state.phase)) {
                 document.getElementById('view-punish').classList.add('active');
                 renderGrid('punish-grid', state);
-                document.getElementById('punish-log').innerHTML = state.logs.map(l => `<p>> ${l}</p>`).join('');
-                document.getElementById('punish-log').scrollTop = document.getElementById('punish-log').scrollHeight;
+                
+                const logBox = document.getElementById('punish-log');
+                logBox.innerHTML = state.logs.map(l => `<p style="margin:5px 0;">> ${l}</p>`).join('');
+                logBox.scrollTop = logBox.scrollHeight;
+
+                const punishControls = document.getElementById('teacher-punish-controls');
+                if(state.phase === 'punish_turn' && state.currentPunishTeam !== 'waiting') {
+                    punishControls.style.display = 'block';
+                    document.getElementById('punish-target-name').innerText = `⚠️ 正在懲罰：${state.teams[state.currentPunishTeam].name}`;
+                } else {
+                    punishControls.style.display = 'none';
+                }
                 
                 if(state.phase === 'punishments_done') {
-                    if (isSpecialQuestion) {
+                    if (isSpecialQuestion || currentQIndex === 9) {
                         document.getElementById('btn-start-magic').style.display = 'inline-block';
-                        document.getElementById('btn-punish-next').style.display = 'none';
-                        document.getElementById('btn-punish-end').style.display = 'none';
-                    } else if (currentQIndex >= 9) {
-                        document.getElementById('btn-start-magic').style.display = 'none';
-                        document.getElementById('btn-punish-end').style.display = 'inline-block';
-                        document.getElementById('btn-punish-next').style.display = 'none';
+                        document.getElementById('btn-punish-end-round').style.display = 'none';
                     } else {
                         document.getElementById('btn-start-magic').style.display = 'none';
-                        document.getElementById('btn-punish-next').style.display = 'inline-block';
-                        document.getElementById('btn-punish-end').style.display = 'none';
+                        document.getElementById('btn-punish-end-round').style.display = 'inline-block';
+                        if(currentQIndex >= 9) document.getElementById('btn-punish-end-round').innerText = '🏆 進入最終結算';
                     }
                 } else {
                     document.getElementById('btn-start-magic').style.display = 'none';
-                    document.getElementById('btn-punish-next').style.display = 'none';
-                    document.getElementById('btn-punish-end').style.display = 'none';
+                    document.getElementById('btn-punish-end-round').style.display = 'none';
                 }
+            }
+            else if (state.phase === 'round_transition') {
+                document.getElementById('view-transition').classList.add('active');
+                document.getElementById('transition-title').innerText = `第 ${currentQIndex + 1} 題 結束`;
+                document.getElementById('btn-challenge-next').innerText = `準備挑戰第 ${currentQIndex + 2} 題`;
+                document.getElementById('btn-challenge-next').style.display = 'inline-block';
+                document.getElementById('countdown-text').style.display = 'none';
+                if(currentQIndex >= 9) control('end_game'); 
             }
             else if (state.phase === 'end_game') {
                 document.getElementById('view-endgame').classList.add('active');
@@ -216,20 +239,37 @@
 
         function setupTeams() { socket.emit('teacher_setup', document.getElementById('teamCount').value); }
         function startGame() { socket.emit('teacher_start'); }
-        function control(action) { socket.emit('teacher_control', action); }
+        function control(action) { 
+            if(action === 'end_round' && currentQIndex >= 9) socket.emit('teacher_control', 'end_game');
+            else socket.emit('teacher_control', action); 
+        }
+
+        function startCountdown() {
+            let count = 3;
+            document.getElementById('btn-challenge-next').style.display = 'none';
+            const cdText = document.getElementById('countdown-text');
+            cdText.style.display = 'block';
+            cdText.innerText = count;
+            
+            let iv = setInterval(() => {
+                count--;
+                if(count > 0) cdText.innerText = count;
+                else {
+                    clearInterval(iv);
+                    control('next'); 
+                }
+            }, 1000);
+        }
 
         function renderQnA(state) {
             const q = state.question;
             if(!q) return;
-            document.getElementById('q-text').innerText = `Q${state.currentQuestionIndex + 1}. ${q['題目']} (${q['題目類型'] === '特殊' ? '🌟魔法題' : '📜普通題'})`;
+            document.getElementById('q-text').innerText = `Q${state.currentQuestionIndex + 1}. ${q['題目']} (${(q['題目類型'] === '特殊' || state.currentQuestionIndex===9) ? '🌟魔法題' : '📜普通題'})`;
             ['A','B','C','D'].forEach(o => {
                 const opt = document.getElementById(`opt-${o}`);
                 opt.innerText = `${o}: ${q[o]}`;
-                // 強制清空上一題殘留的綠底
                 opt.classList.remove('opt-correct');
-                if(state.phase !== 'answering' && q['正確答案'] === o) {
-                    opt.classList.add('opt-correct');
-                }
+                if(state.phase !== 'answering' && q['正確答案'] === o) opt.classList.add('opt-correct');
             });
             const exp = document.getElementById('explanation');
             if(state.phase !== 'answering' && q['詳解']) { exp.style.display = 'block'; exp.innerHTML = `💡 詳解：${q['詳解']}`; } 
@@ -261,7 +301,7 @@
 
                 if(state.phase === 'punish_turn' && state.currentPunishTeam === t.id) cardClass += ' punish-highlight';
                 else if(state.phase !== 'answering' && state.phase !== 'show_actions' && state.phase !== 'magic_phase' && containerId !== 'lobby-grid') {
-                    if(t.answer) status = t.isCorrect ? '⭕ 答對' : '❌ 答錯';
+                    if(t.answer) status = t.isCorrect ? '⭕ 答對' : '❌ 超時未答';
                     else if(t.locked) status = '❌ 超時未答';
                 }
                 
@@ -280,7 +320,6 @@
             const g = document.getElementById('endgame-grid'); g.innerHTML = '';
             ranks.forEach((t, index) => {
                 const rankNum = index + 1;
-                // 這裡的 HTML 已經移除了原本的問號，並加上名牌設計
                 g.innerHTML += `
                 <div class="flip-card" onclick="this.classList.toggle('flipped')">
                     <div class="flip-card-inner">
@@ -289,9 +328,9 @@
                         </div>
                         <div class="flip-back">
                             <div class="rank-num">第 ${rankNum} 名</div>
-                            <img src="/assets/${t.id}.png" onerror="this.src='/assets/shaman_blocky.png'" style="width:80px;height:80px;image-rendering:pixelated;">
+                            <img src="/assets/${t.id}.png" onerror="this.src='/assets/shaman_blocky.png'" style="width:70px;height:70px;image-rendering:pixelated;">
                             <h3 style="margin:5px 0; color:#fff;">${t.name}</h3>
-                            <div style="font-size:35px; color:#e74c3c; font-weight:bold;">${t.hp}❤️</div>
+                            <div style="font-size:30px; color:#e74c3c; font-weight:bold;">${t.hp}❤️</div>
                         </div>
                     </div>
                 </div>`;

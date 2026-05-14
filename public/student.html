@@ -37,7 +37,10 @@
         .status-box { border: 4px solid #3498db; padding: 30px 20px; border-radius: 15px; background: rgba(0,0,0,0.9); margin-top: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
 
         #result-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; flex-direction: column; align-items: center; justify-content: center; animation: zoomIn 0.3s;}
+        
+        #global-debuff-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; background: rgba(192, 57, 43, 0.95); animation: flash 0.5s ease-in-out;}
         @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes flash { 0% { background: rgba(255, 255, 255, 1); } 100% { background: rgba(192, 57, 43, 0.95); } }
     </style>
 </head>
 <body>
@@ -48,8 +51,13 @@
         <div id="result-text" style="font-size: 60px;"></div>
     </div>
 
+    <div id="global-debuff-overlay">
+        <div style="font-size: 100px;">🚨</div>
+        <div id="global-debuff-text" style="font-size: 30px; font-weight:bold; width:80%; text-shadow:2px 2px #000; line-height:1.5; padding:20px;"></div>
+    </div>
+
     <div id="view-lobby" class="view active">
-        <h2>👇 選擇部落 👇</h2>
+        <h2>👇 選擇您的部落 👇</h2>
         <div id="claim-list"></div>
     </div>
 
@@ -96,20 +104,12 @@
 
         <div id="magic-display" class="modal-box" style="display:none; border-color: #9b59b6;">
             <h2 style="color:#e056fd; font-size:30px; margin-top:0;">🌟 魔法祭壇 🌟</h2>
-            <p>系統為你降下了魔法卡！</p>
+            <p>天神為你降下了魔法卡！</p>
             <div class="magic-card-display">
                 <h2 id="magic-name" style="color:#fff; text-shadow:2px 2px #000;"></h2>
                 <p id="magic-desc" style="color:#f1c40f; font-size:18px; font-weight:bold; background:rgba(0,0,0,0.6); padding:10px; border-radius:5px;"></p>
             </div>
             <p style="color:#aaa; margin-top:15px;">請看大螢幕展演魔法效果！</p>
-        </div>
-
-        <div id="punish-choice" class="modal-box" style="display:none; border-color: #e74c3c;">
-            <h2 style="color:#ff7675; font-size:32px;">⚠️ 天譴抉擇！</h2>
-            <h3 id="pot-display" style="color: #f1c40f;"></h3>
-            <button class="tribe-btn" id="btn-take" style="background:#d63031; padding: 20px;" onclick="submitPunish('take')">承受傷害</button>
-            <button id="btn-pass" class="tribe-btn" style="background:#6c5ce7; padding: 20px;" onclick="submitPunish('pass')">傳遞盲盒給下一組<br><span style="font-size:14px">(傷害x2 + 隨機神秘效果)</span></button>
-            <p id="last-warning" style="color:#e74c3c; display:none; font-size: 20px; font-weight:bold;">你是最後一組！無路可退，只能承受！</p>
         </div>
     </div>
 
@@ -117,16 +117,22 @@
     <script>
         const socket = io();
         let myId = null, tactic = null, selectedAns = null, phase = '';
-        let myPenalty = 0; // 追蹤自身擁有的時間 Debuff
+        let myPenalty = 0; 
         
         window.onload = () => {
             const savedTeam = localStorage.getItem('tribal_team_id');
             if(savedTeam) socket.emit('claim_team', savedTeam);
         };
 
+        socket.on('global_debuff', (msg) => {
+            document.getElementById('global-debuff-text').innerText = msg;
+            const overlay = document.getElementById('global-debuff-overlay');
+            overlay.style.display = 'flex';
+            setTimeout(() => { overlay.style.display = 'none'; }, 6000); 
+        });
+
         socket.on('timer_update', (time) => { 
             if(phase === 'answering') {
-                // 如果有被扣 5 秒，你的時間會比別人少顯示 5 秒 (最低為 0)
                 let displayTime = time - myPenalty;
                 if(displayTime < 0) displayTime = 0;
                 document.getElementById('timer-display').innerText = `⏳ ${displayTime}`; 
@@ -166,7 +172,6 @@
                     return;
                 }
 
-                // 隨時更新自己的 Debuff 狀態
                 myPenalty = state.teams[myId].timePenalty || 0;
 
                 document.getElementById('view-lobby').style.display = 'none';
@@ -174,20 +179,18 @@
                 document.getElementById('q-number').innerText = `進度：第 ${state.currentQuestionIndex + 1} / 10 題`;
                 renderRadar(state.teams);
                 
-                // 強制暴力重置殘影
                 if(state.phase === 'answering' && phase !== 'answering') resetUI();
                 if(state.phase === 'reveal_answers' && phase === 'answering') showResult(state.teams[myId].isCorrect);
                 
                 document.getElementById('turn-controls').style.display = 'none';
                 document.getElementById('locked-summary').style.display = 'none';
                 document.getElementById('magic-display').style.display = 'none';
-                document.getElementById('punish-choice').style.display = 'none';
                 document.getElementById('status-screen').style.display = 'none';
 
                 if (state.phase !== 'answering') document.getElementById('timer-display').innerText = `⏳ --`;
 
                 if (state.phase === 'lobby') {
-                    showStatus('⏳ 等待開始', '你已成功登入部落，請等待老師開始遊戲！', '#f39c12');
+                    showStatus('⏳ 等待開始', '你已成功登入部落，請等待遊戲開始！', '#f39c12');
                 }
                 else if (state.phase === 'answering') {
                     if (state.teams[myId].locked) {
@@ -199,7 +202,6 @@
                         }
                     } else {
                         document.getElementById('turn-controls').style.display = 'block';
-                        // 初始化時間顯示，避免等 1 秒才出現
                         let initialTime = state.timeLeft - myPenalty;
                         if(initialTime < 0) initialTime = 0;
                         document.getElementById('timer-display').innerText = `⏳ ${initialTime}`;
@@ -209,29 +211,17 @@
                     showStatus('👀 停止作答', '請抬頭觀看大螢幕公佈解答！', '#3498db');
                 }
                 else if (state.phase === 'show_actions') {
-                    showStatus('⚔️ 戰鬥展演', '請抬頭觀看大螢幕，確認各部落攻防戰況！', '#e74c3c');
+                    showStatus('⚔️ 戰鬥展演', state.teams[myId].personalLog || '請抬頭觀看大螢幕戰況！', '#e74c3c');
                 }
                 else if (state.phase === 'punish_turn') {
                     if (state.currentPunishTeam === myId) {
-                        document.getElementById('btn-take').style.opacity = '1'; document.getElementById('btn-take').style.pointerEvents = 'auto';
-                        document.getElementById('btn-pass').style.opacity = '1'; document.getElementById('btn-pass').style.pointerEvents = 'auto';
-                        
-                        document.getElementById('punish-choice').style.display = 'block';
-                        document.getElementById('pot-display').innerText = `目前累積：${state.punishmentPot} 傷害`;
-                        
-                        if(state.isLastPunish) {
-                            document.getElementById('btn-pass').style.display = 'none';
-                            document.getElementById('last-warning').style.display = 'block';
-                        } else {
-                            document.getElementById('btn-pass').style.display = 'block';
-                            document.getElementById('last-warning').style.display = 'none';
-                        }
+                        showStatus('💀 天譴降臨', '你遭受了天譴！請等待天神宣判你的命運！', '#e74c3c');
                     } else {
-                        showStatus('💀 天譴降臨', '某個答錯的部落正在面臨抉擇，請看大螢幕！', '#8e44ad');
+                        showStatus('💀 天譴結算中', '某個答錯的部落正在面臨抉擇，請看大螢幕！', '#8e44ad');
                     }
                 }
                 else if (state.phase === 'punishments_done') {
-                    showStatus('⏳ 結算完畢', '天譴結束，請看大螢幕等待下一步...', '#2ecc71');
+                    showStatus('⏳ 結算完畢', '天譴結束，請看大螢幕並等待下個行動...', '#2ecc71');
                 }
                 else if (state.phase === 'magic_phase') {
                     if (state.teams[myId].magicCard) {
@@ -242,8 +232,11 @@
                         showStatus('🪄 魔法祭壇', '場上正在發動特殊魔法卡牌，請看大螢幕！', '#9b59b6');
                     }
                 }
+                else if (state.phase === 'round_transition') {
+                    showStatus('✅ 本回合結束', `準備進入下一題，深呼吸...`, '#f1c40f');
+                }
                 else if (state.phase === 'end_game') {
-                    showStatus('🏆 遊戲結束', '辛苦了！請抬頭觀看大螢幕的最終排名！', '#f1c40f');
+                    showStatus('🏆 遊戲結束', '辛苦了！請觀看大螢幕的最終排名！', '#f1c40f');
                 }
                 
                 phase = state.phase;
@@ -278,42 +271,32 @@
             document.getElementById('turn-controls').style.display = 'none';
             document.getElementById('locked-summary').style.display = 'block';
         }
-        function submitPunish(c) { 
-            document.getElementById('btn-take').style.opacity = '0.5'; document.getElementById('btn-take').style.pointerEvents = 'none';
-            document.getElementById('btn-pass').style.opacity = '0.5'; document.getElementById('btn-pass').style.pointerEvents = 'none';
-            socket.emit('submit_punish_choice', { teamId: myId, choice: c }); 
-        }
         
-        // 暴力清除：確保下一題開始時絕對沒有上一題的殘影
         function resetUI() { 
             document.getElementById('turn-controls').style.display='block'; 
             document.getElementById('locked-summary').style.display='none'; 
             document.getElementById('magic-display').style.display='none';
-            document.getElementById('punish-choice').style.display='none';
             document.getElementById('status-screen').style.display='none';
             document.getElementById('summary-text').innerHTML = ''; 
             
-            // 拔除所有按鈕的選取狀態 Class
             document.getElementById('btn-attack').classList.remove('selected');
             document.getElementById('btn-defend').classList.remove('selected');
             ['A','B','C','D'].forEach(o => {
                 const btn = document.getElementById(`ans-${o}`);
                 btn.classList.remove('ans-selected');
-                btn.style.background = '#fff'; // 強制覆蓋內聯樣式
+                btn.style.background = '#fff'; 
                 btn.style.color = '#000';
             });
             
             tactic = null; selectedAns = null;
             document.getElementById('target-select').style.display = 'none';
-            
-            // 完全清空下拉選單並重建，確保沒有留存的狀態
             document.getElementById('target-select').innerHTML = ''; 
         }
         
         function showResult(c) {
             const o = document.getElementById('result-overlay'); o.style.display = 'flex';
             o.style.background = c ? 'rgba(39, 174, 96, 0.95)' : 'rgba(192, 57, 43, 0.95)';
-            document.getElementById('result-icon').innerText = c ? '⭕' : '❌';
+            document.getElementById('result-icon').innerText = c ? '⭕' : '答題成功';
             document.getElementById('result-text').innerText = c ? '答題成功' : '答題失敗';
             setTimeout(() => o.style.display = 'none', 3000);
         }
@@ -328,7 +311,7 @@
         function renderRadar(ts) {
             const r = document.getElementById('radar'); r.innerHTML = '';
             const sel = document.getElementById('target-select'); 
-            const init = sel.options.length === 0; // resetUI() 會清空它，所以下一題一定會重建
+            const init = sel.options.length === 0; 
             
             Object.values(ts).forEach(t => { 
                 r.innerHTML += `<div class="radar-item">${t.name}:${t.hp}❤️</div>`;
