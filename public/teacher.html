@@ -212,10 +212,8 @@
                     punishControls.style.display = 'block';
                     document.getElementById('punish-target-name').innerText = `⚠️ 正在懲罰：${state.teams[state.currentPunishTeam].name}`;
                     
-                    // 【神級修改 1】顯示目前累積的天譴分數
                     document.getElementById('punish-pot-display').innerText = `🔥 目前累積傷害：${state.punishmentPot} 分`;
                     
-                    // 【神級修改 1】如果是最後一組，隱藏加倍按鈕，並顯示警告
                     if(state.isLastPunish) {
                         document.getElementById('btn-pass-punish').style.display = 'none';
                         document.getElementById('punish-last-warning').style.display = 'block';
@@ -244,8 +242,16 @@
             }
             else if (state.phase === 'round_transition') {
                 document.getElementById('view-transition').classList.add('active');
-                document.getElementById('transition-title').innerText = `第 ${currentQIndex + 1} 題 結束`;
-                document.getElementById('btn-challenge-next').innerText = `準備挑戰第 ${currentQIndex + 2} 題`;
+                
+                // 【修改】判斷是不是第 1 題開場
+                if (currentQIndex === -1) {
+                    document.getElementById('transition-title').innerText = `🔥 遊戲即將開始 🔥`;
+                    document.getElementById('btn-challenge-next').innerText = `準備挑戰第 1 題`;
+                } else {
+                    document.getElementById('transition-title').innerText = `第 ${currentQIndex + 1} 題 結束`;
+                    document.getElementById('btn-challenge-next').innerText = `準備挑戰第 ${currentQIndex + 2} 題`;
+                }
+
                 document.getElementById('btn-challenge-next').style.display = 'inline-block';
                 document.getElementById('countdown-text').style.display = 'none';
                 if(currentQIndex >= 9) control('end_game'); 
@@ -283,7 +289,9 @@
         function renderQnA(state) {
             const q = state.question;
             if(!q) return;
-            document.getElementById('q-text').innerText = `Q${state.currentQuestionIndex + 1}. ${q['題目']} (${(q['題目類型'] === '特殊' || state.currentQuestionIndex===9) ? '🌟魔法題' : '📜普通題'})`;
+            // 題目顯示保護，避免 -1 取不到題號
+            let qNum = state.currentQuestionIndex >= 0 ? state.currentQuestionIndex + 1 : 1;
+            document.getElementById('q-text').innerText = `Q${qNum}. ${q['題目']} (${(q['題目類型'] === '特殊' || state.currentQuestionIndex===9) ? '🌟魔法題' : '📜普通題'})`;
             ['A','B','C','D'].forEach(o => {
                 const opt = document.getElementById(`opt-${o}`);
                 opt.innerText = `${o}: ${q[o]}`;
