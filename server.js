@@ -39,8 +39,7 @@ async function loadQuestions() {
         Papa.parse(response.data, {
             header: true,
             complete: (results) => {
-                // 強制只取前 10 題
-                questions = results.data.slice(0, 10);
+                questions = results.data.slice(0, 10); 
                 updateQuestion();
                 console.log(`✅ 題庫同步成功！共載入 ${questions.length} 題`);
             }
@@ -72,13 +71,9 @@ function startTimer() {
         gameState.timeLeft--;
         let someoneLocked = false;
         
-        // 檢查個別部落的 Debuff 提前鎖定
         Object.values(gameState.teams).forEach(t => {
             if (!t.locked && t.timePenalty > 0 && gameState.timeLeft <= t.timePenalty) {
-                t.locked = true;
-                t.action = 'defend'; 
-                t.answer = null;
-                t.isCorrect = false; 
+                t.locked = true; t.action = 'defend'; t.answer = null; t.isCorrect = false; 
                 someoneLocked = true;
             }
         });
@@ -125,7 +120,7 @@ io.on('connection', (socket) => {
             gameState.teams[id] = { 
                 id, name: `${names[i-1] || i}號部落`, hp: 10, 
                 connected: false, locked: false, action: null, target: null, 
-                answer: null, isCorrect: false, combatAnim: null, magicCard: null, timePenalty: 0 
+                answer: null, isCorrect: false, combatAnim: null, magicCard: null, timePenalty: 0, personalLog: "" 
             };
         }
         io.emit('state_update', gameState);
@@ -164,28 +159,31 @@ io.on('connection', (socket) => {
         io.emit('state_update', gameState);
     });
 
-    socket.on('submit_punish_choice', (data) => {
-        if(gameState.phase !== 'punish_turn' || gameState.currentPunishTeam !== data.teamId) return;
+    socket.on('teacher_submit_punish', (choice) => {
+        if(gameState.phase !== 'punish_turn' || !gameState.currentPunishTeam) return;
         
-        const team = gameState.teams[data.teamId];
+        const team = gameState.teams[gameState.currentPunishTeam];
         gameState.currentPunishTeam = 'waiting';
 
-        if(data.choice === 'take') {
+        if(choice === 'take') {
             team.hp -= gameState.punishmentPot;
-            gameState.logs.push(`💀 ${team.name} 承受天譴，扣除 ${gameState.punishmentPot} 分！`);
-        } else if (data.choice === 'pass') {
+            gameState.logs.push(`💀 ${team.name} 自行承受天譴，扣除 ${gameState.punishmentPot} 分！`);
+        } else if (choice === 'pass') {
             gameState.punishmentPot *= 2; 
             const allTeams = Object.values(gameState.teams);
             const randomTeam = allTeams[Math.floor(Math.random()*allTeams.length)];
             const pts = Math.floor(Math.random() * 3) + 1; 
             
             const debuffTypes = [
-                () => { team.timePenalty = 5; return "時空扭曲：自己的下一題作答時間提早 5 秒結束！"; },
-                () => { randomTeam.hp += pts; return `幸運泉湧：隨機使 ${randomTeam.name} 獲得 ${pts} 分！`; },
-                () => { randomTeam.hp -= pts; return `厄運蔓延：隨機使 ${randomTeam.name} 流失 ${pts} 分！`; }
+                () => { team.timePenalty = 5; return "【時空扭曲】自己部落下一題作答時間減少 5 秒！"; },
+                () => { randomTeam.hp += pts; return `【幸運泉湧】隨機使 ${randomTeam.name} 獲得 ${pts} 分！`; },
+                () => { randomTeam.hp -= pts; return `【厄運蔓延】隨機使 ${randomTeam.name} 流失 ${pts} 分！`; },
+                () => { return `【囚禁之地】請 ${team.name} 派一名隊員至講台上，該名隊員強制登出遊戲！`; } 
             ];
             const res = debuffTypes[Math.floor(Math.random() * debuffTypes.length)]();
-            gameState.logs.push(`☠️ ${team.name} 傳遞天譴！【Debuff：${res}】`);
+            gameState.logs.push(`☠️ ${team.name} 無情傳遞天譴！觸發：${res}`);
+            
+            io.emit('global_debuff', `🚨 突發狀況 🚨\n${res}`);
         }
 
         io.emit('state_update', gameState);
@@ -209,7 +207,6 @@ io.on('connection', (socket) => {
         if(action === 'reveal') {
             clearInterval(timerInterval);
             gameState.phase = 'reveal_answers';
-            // 公佈答案時，清除所有的倒數罰秒狀態
             Object.values(gameState.teams).forEach(t => t.timePenalty = 0);
         } 
         else if (action === 'show_actions') {
@@ -222,6 +219,9 @@ io.on('connection', (socket) => {
         else if (action === 'start_magic') {
             gameState.phase = 'magic_phase';
             prepareMagicSequence();
+        }
+        else if (action === 'end_round') {
+            gameState.phase = 'round_transition';
         }
         else if (action === 'next') {
             nextRound();
@@ -237,34 +237,43 @@ io.on('connection', (socket) => {
 function prepareCombatSequence() {
     gameState.combatQueue = [];
     const teams = Object.values(gameState.teams);
-    let attackCounts = {};
-    teams.forEach(t => attackCounts[t.id] = 0);
+    let attackersMap = {}; 
+    teams.forEach(t => attackersMap[t.id] = []);
 
     teams.forEach(t => {
         if(t.isCorrect && t.action === 'attack' && t.target && !t.specialAction) {
-            attackCounts[t.target]++;
+            attackersMap[t.target].push(t.name);
         }
     });
 
     teams.forEach(t => {
-        let incoming = attackCounts[t.id] || 0;
+        let incomingAttackers = attackersMap[t.id];
+        let incomingDamage = incomingAttackers.length;
         let isDefending = (t.isCorrect && t.action === 'defend' && !t.specialAction);
-        let dmg = incoming;
+        let dmg = incomingDamage;
         let logStr = `⚔️ 【${t.name}】`;
         let anim = 'hit';
 
-        if (incoming === 0 && !isDefending) return; 
-
-        if (isDefending) {
-            if (dmg > 0) dmg--; 
-            logStr += `防禦成功！`;
-            anim = dmg > 0 ? 'hit' : 'defend';
+        if (incomingDamage === 0 && !isDefending) {
+            t.personalLog = "🛡️ 此回合無人攻擊你，安然無恙。";
+            return; 
         }
 
-        if (incoming > 0) {
-            logStr += `遭受 ${incoming} 次攻擊，共扣 ${dmg} 分！`;
-        } else if (isDefending) {
-            logStr += `安然無恙。`;
+        if (isDefending) {
+            dmg = 0; 
+            if (incomingDamage > 0) {
+                logStr += `完美防禦！擋下了來自 ${incomingAttackers.join('、')} 的所有攻擊！`;
+                t.personalLog = `🛡️ 完美防禦！成功擋下了 ${incomingAttackers.join('、')} 的攻擊！`;
+            } else {
+                logStr += `架起防禦，但無人攻擊，安然無恙。`;
+                t.personalLog = `🛡️ 你架起了防禦，但這回合沒人攻擊你。`;
+            }
+            anim = 'defend';
+        } else {
+            if (incomingDamage > 0) {
+                logStr += `遭受 ${incomingAttackers.join('、')} 猛烈攻擊，共扣 ${dmg} 分！`;
+                t.personalLog = `💥 遭到 ${incomingAttackers.join('、')} 的攻擊，扣除 ${dmg} 分！`;
+            }
         }
 
         gameState.combatQueue.push({ actor: t.id, anim: anim, log: logStr, applyFunc: () => { t.hp -= dmg; } });
@@ -281,7 +290,7 @@ function startPunishments() {
     if(active.length > 0 && active.every(t => t.action === 'defend')) {
         const unlucky = active[Math.floor(Math.random()*active.length)];
         unlucky.hp -= 10;
-        gameState.logs.push(`⚡ 【天譴】全場退縮防禦！${unlucky.name} 遭雷劈扣 10 分！`);
+        gameState.logs.push(`⚡ 【天譴】所有部落皆選擇防禦！人神共憤！${unlucky.name} 遭雷劈扣 10 分！`);
     }
     nextPunishment();
 }
@@ -304,33 +313,49 @@ function prepareMagicSequence() {
     const allTeams = Object.values(gameState.teams);
 
     const magicCards = [
-        { name: '靈魂枷鎖·命運交錯', desc: '強制與隨機一組互換分數', action: (actor) => {
+        { id: 'swap', name: '靈魂枷鎖·命運交錯', desc: '強制與隨機一組互換分數', action: (actor) => {
             const target = allTeams[Math.floor(Math.random()*allTeams.length)];
             gameState.combatQueue.push({ actor: actor.id, target: target.id, anim: 'magic', log: `🔄 【${actor.name}】發動魔法！與 ${target.name} 分數互換！`, applyFunc: () => { let temp = actor.hp; actor.hp = target.hp; target.hp = temp; }});
         }},
-        { name: '逆轉乾坤·陰陽無極', desc: '自身分數正負號逆轉', action: (actor) => {
+        { id: 'reverse', name: '逆轉乾坤·陰陽無極', desc: '自身分數正負號逆轉', action: (actor) => {
             gameState.combatQueue.push({ actor: actor.id, anim: 'magic', log: `☯️ 【${actor.name}】發動魔法！分數正負逆轉！`, applyFunc: () => { actor.hp = actor.hp * -1; }});
         }},
-        { name: '滅世天罰·虛空崩解', desc: '隨機一組扣除 5 分', action: (actor) => {
+        { id: 'gojo', name: '領域展開·無量空處', desc: '隨機一組分數直接砍半', action: (actor) => {
             const target = allTeams[Math.floor(Math.random()*allTeams.length)];
-            gameState.combatQueue.push({ actor: actor.id, target: target.id, anim: 'attack', log: `☄️ 【${actor.name}】發動魔法！${target.name} 慘遭轟擊扣 5 分！`, applyFunc: () => { target.hp -= 5; }});
+            gameState.combatQueue.push({ actor: actor.id, target: target.id, anim: 'attack', log: `🤞 【${actor.name}】發動《二點五條悟》！${target.name} 分數被強制砍半！`, applyFunc: () => { target.hp = Math.floor(target.hp / 2); }});
         }},
-        { name: '聖光降臨·神聖洗禮', desc: '隨機一組回復 10 分', action: (actor) => {
+        { id: 'heal', name: '聖光降臨·神聖洗禮', desc: '隨機一組回復 10 分', action: (actor) => {
             const target = allTeams[Math.floor(Math.random()*allTeams.length)];
             gameState.combatQueue.push({ actor: actor.id, target: target.id, anim: 'defend', log: `✨ 【${actor.name}】發動魔法！${target.name} 受到治癒回復 10 分！`, applyFunc: () => { target.hp += 10; }});
         }},
-        { name: '死神歸來·萬物歸零', desc: '自身分數瞬間歸零', action: (actor) => {
+        { id: 'zero', name: '死神歸來·萬物歸零', desc: '自身分數瞬間歸零', action: (actor) => {
             gameState.combatQueue.push({ actor: actor.id, anim: 'hit', log: `💀 【${actor.name}】發動魔法！自身分數瞬間歸零！`, applyFunc: () => { actor.hp = 0; }});
         }}
     ];
 
-    correctTeams.forEach(t => {
-        const randomCard = magicCards[Math.floor(Math.random() * magicCards.length)];
-        t.magicCard = randomCard; 
-        randomCard.action(t);
-    });
-    
-    if(correctTeams.length === 0) gameState.combatQueue.push({ anim: null, log: `🌪️ 無人答對，魔法祭壇毫無反應。`});
+    const x10Card = { id: 'x10', name: '神之手·十倍界王拳', desc: '隨機一組尾數加個零(x10)', action: (actor) => {
+        const target = allTeams[Math.floor(Math.random()*allTeams.length)];
+        gameState.combatQueue.push({ actor: actor.id, target: target.id, anim: 'magic', log: `🔥 【${actor.name}】發動《十倍界王拳》！${target.name} 分數暴增十倍！`, applyFunc: () => { if(target.hp !== 0) target.hp = target.hp * 10; }});
+    }};
+
+    if(correctTeams.length === 0) {
+        gameState.combatQueue.push({ anim: null, log: `🌪️ 無人答對，魔法祭壇無法啟動...`});
+        return;
+    }
+
+    if (gameState.currentQuestionIndex === 9) {
+        correctTeams[0].magicCard = x10Card;
+        x10Card.action(correctTeams[0]);
+        for(let i=1; i<correctTeams.length; i++) {
+            let rc = magicCards[Math.floor(Math.random() * magicCards.length)];
+            correctTeams[i].magicCard = rc; rc.action(correctTeams[i]);
+        }
+    } else {
+        correctTeams.forEach(t => {
+            let rc = magicCards[Math.floor(Math.random() * magicCards.length)];
+            t.magicCard = rc; rc.action(t);
+        });
+    }
 }
 
 function nextRound() {
@@ -349,11 +374,10 @@ function nextRound() {
     for(let id in gameState.teams) {
         Object.assign(gameState.teams[id], {
             locked: false, action: null, target: null, answer: null, 
-            isCorrect: false, combatAnim: null, magicCard: null
+            isCorrect: false, combatAnim: null, magicCard: null, personalLog: ""
         });
     }
     startTimer();
 }
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`伺服器已啟動，監聽 Port: ${PORT}`));
+server.listen(PORT = process.env.PORT || 3000, () => console.log(`Server is running on port ${PORT}`));
