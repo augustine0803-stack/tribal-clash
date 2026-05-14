@@ -25,15 +25,18 @@
         .card img { width: 50px; height: 50px; object-fit: contain; margin: 2px 0; }
         .card h3 { margin: 0; color: #00d2ff; font-size: 15px; }
         .hp { font-size: 28px; color: #e74c3c; margin: 2px 0; }
-        .status { font-size: 12px; color: #aaa; background: #000; padding: 3px; border-radius: 5px; }
+        .status { font-size: 13px; font-weight: bold; background: #000; padding: 4px; border-radius: 5px; } /* 微調狀態列字體 */
 
         .dmg-popup { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); color: #ff4757; font-size: 30px; font-weight: bold; animation: floatUp 1s forwards; pointer-events: none; z-index: 100;}
         @keyframes floatUp { 0% { opacity: 1; top: 0; } 100% { opacity: 0; top: -50px; } }
 
-        /* 中毒/魔法強效視覺：覆蓋整個卡牌背景為深紫閃爍 */
-        .anim-magic { animation: magicPulse 0.5s infinite alternate !important; border-color: #9b59b6 !important; background-color: rgba(155, 89, 182, 0.5) !important; box-shadow: 0 0 30px #9b59b6 !important; transform: scale(1.1); z-index: 10;}
-        @keyframes magicPulse { from { filter: brightness(1); transform: scale(1.1); } to { filter: brightness(1.5); transform: scale(1.1); } }
-        
+        .anim-magic { background-color: rgba(142, 68, 173, 0.9) !important; border-color: #e056fd !important; animation: magicPulse 0.4s infinite alternate !important; z-index: 10;}
+        .anim-magic h3, .anim-magic .hp, .anim-magic .status { color: #fff !important; text-shadow: 2px 2px 5px #000 !important; }
+        @keyframes magicPulse { 
+            from { transform: scale(1.1); box-shadow: 0 0 20px #9b59b6; filter: hue-rotate(0deg); } 
+            to { transform: scale(1.1); box-shadow: 0 0 40px #e056fd; filter: hue-rotate(90deg) brightness(1.2); } 
+        }
+
         .anim-attack { animation: attackMove 0.4s infinite alternate; border-color: #c0392b; box-shadow: 0 0 25px #c0392b; transform: scale(1.1); z-index: 10;}
         .anim-defend { border-color: #3498db; box-shadow: 0 0 25px #3498db; transform: scale(1.1); z-index: 10;}
         .anim-hit { animation: shake 0.3s infinite; border-color: #e74c3c; background: rgba(127, 35, 28, 0.8); }
@@ -42,7 +45,6 @@
         @keyframes attackMove { from { transform: translateY(0) scale(1.1); } to { transform: translateY(-20px) scale(1.1); } }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
 
-        /* 翻牌動畫完整修復 */
         .flip-card { background-color: transparent; width: 150px; height: 210px; perspective: 1000px; cursor: pointer; }
         .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
         .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
@@ -56,8 +58,9 @@
         @keyframes confettiGlow { from { transform: scale(1); } to { transform: scale(1.05); } }
 
         .log-box { background: rgba(0,0,0,0.85); color: #f1c40f; padding: 15px; flex-grow: 1; overflow-y: auto; text-align: left; font-size: 26px; border-left: 10px solid #f1c40f; border-radius: 10px; margin: 10px auto; width: 90%; }
-        .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 5px 0 #2980b9; transition: opacity 0.2s;}
+        .big-btn { font-family: 'Impact', sans-serif; padding: 12px 25px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 24px; margin: 5px; box-shadow: 0 5px 0 #2980b9; transition: 0.2s;}
         .big-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .reset-btn { position: fixed; top: 15px; left: 15px; background: #c0392b; color: white; padding: 8px 12px; border-radius: 8px; border: 2px solid white; cursor: pointer; font-size: 14px; z-index: 1000; }
         
         #view-setup { align-items: center; justify-content: center; }
@@ -138,11 +141,10 @@
         const socket = io();
         let currentQIndex = -1;
 
-        // 防呆保護機制：防止老師滑鼠連點導致跳關
         function lockButtons() {
             const btns = document.querySelectorAll('.big-btn');
             btns.forEach(b => b.disabled = true);
-            setTimeout(() => { btns.forEach(b => b.disabled = false); }, 800); // 鎖定 0.8 秒
+            setTimeout(() => { btns.forEach(b => b.disabled = false); }, 800);
         }
         function safeEmit(event, data) { lockButtons(); socket.emit(event, data); }
         function safeControl(action) {
@@ -184,10 +186,7 @@
                 document.getElementById('view-combat').classList.add('active');
                 renderGrid('combat-grid', state);
                 const qLen = state.combatQueue.length;
-                
-                // 【修復按鈕偷跑問題】確保動畫演完才出現下一個按鈕
                 document.getElementById('btn-next-action').style.display = (qLen > 0) ? 'inline-block' : 'none';
-                
                 if (state.phase === 'show_actions') {
                     document.getElementById('btn-punish').style.display = (qLen === 0) ? 'inline-block' : 'none';
                     document.getElementById('btn-combat-end-round').style.display = 'none';
@@ -195,7 +194,6 @@
                     document.getElementById('btn-punish').style.display = 'none';
                     if (qLen === 0) document.getElementById('btn-combat-end-round').style.display = 'inline-block';
                 }
-                
                 document.getElementById('combat-log').innerHTML = state.logs.map(l => `<p>> ${l}</p>`).join('');
                 document.getElementById('timer-box').style.display = 'none';
             }
@@ -223,6 +221,13 @@
                 document.getElementById('view-transition').classList.add('active');
                 const titleText = currentQIndex === -1 ? "🔥 準備進行天神試煉 🔥" : (currentQIndex === 0 ? "✨ 試煉題結束，所有部落獲得庇護血量重置 ✨" : `第 ${currentQIndex} 題 結束`);
                 document.getElementById('transition-title').innerText = titleText;
+                
+                let nextText = "";
+                if (currentQIndex === -1) nextText = "開始試煉題";
+                else if (currentQIndex === 0) nextText = "開始第 1 題";
+                else nextText = `開始第 ${currentQIndex + 1} 題`;
+                
+                document.getElementById('btn-challenge-next').innerText = nextText;
                 document.getElementById('btn-challenge-next').style.display = 'inline-block';
                 document.getElementById('countdown-text').style.display = 'none';
                 document.getElementById('timer-box').style.display = 'none';
@@ -235,7 +240,7 @@
         });
 
         function startCountdown() {
-            lockButtons(); // 鎖定防呆
+            lockButtons(); 
             let count = 3;
             document.getElementById('btn-challenge-next').style.display = 'none';
             const cdText = document.getElementById('countdown-text');
@@ -263,7 +268,6 @@
             if(state.phase !== 'answering' && q['詳解']) { exp.style.display = 'block'; exp.innerHTML = `💡 詳解：${q['詳解']}`; } 
             else { exp.style.display = 'none'; }
             
-            // 確保按鈕正確顯示
             document.getElementById('btn-reveal').style.display = (state.phase === 'answering') ? 'inline-block' : 'none';
             document.getElementById('btn-actions').style.display = (state.phase === 'reveal_answers') ? 'inline-block' : 'none';
         }
@@ -272,18 +276,33 @@
             const g = document.getElementById(containerId); g.innerHTML = '';
             Object.values(state.teams).forEach(t => {
                 let cardClass = 'card';
-                let status = t.locked ? '🔒 已鎖定' : '⏳ 等待中...';
-                if(containerId === 'lobby-grid') status = t.connected ? '🟢 已連線' : '⏳ 等待中';
+                let status = '<span style="color:#aaa;">⏳ 等待中...</span>';
                 
+                if (state.phase === 'setup' || state.phase === 'lobby') {
+                    status = t.connected ? '<span style="color:#2ecc71;">🟢 已連線</span>' : '<span style="color:#aaa;">⏳ 等待中</span>';
+                } else if (state.phase === 'answering') {
+                    status = t.locked ? '<span style="color:#f39c12;">🔒 已鎖定</span>' : '<span style="color:#aaa;">⏳ 思考中...</span>';
+                } else {
+                    // 【修復核心】公佈解答與後續階段，顯示答對或答錯
+                    if (t.answer) {
+                        status = t.isCorrect ? '<span style="color:#2ecc71;">⭕ 答對</span>' : '<span style="color:#e74c3c;">❌ 答錯</span>';
+                    } else {
+                        status = '<span style="color:#e74c3c;">❌ 超時</span>';
+                    }
+                }
+                
+                if(state.phase === 'punish_turn' && state.currentPunishTeam === t.id) cardClass += ' punish-highlight';
+
                 let dmgText = "";
                 if(['show_actions', 'magic_phase'].includes(state.phase) && state.currentCombatEvent) {
                     if(state.currentCombatEvent.actor === t.id || state.currentCombatEvent.target === t.id) {
-                        cardClass += ` anim-${state.currentCombatEvent.anim}`; // 魔法特效會吃到 anim-magic
+                        cardClass += ` anim-${state.currentCombatEvent.anim}`;
                         if(state.currentCombatEvent.damage && state.currentCombatEvent.actor === t.id) {
                             dmgText = `<div class="dmg-popup">-${state.currentCombatEvent.damage}</div>`;
                         }
                     }
                 }
+                
                 g.innerHTML += `<div class="${cardClass}">
                     ${dmgText}
                     <h3>${t.name}</h3>
@@ -298,10 +317,6 @@
             const g = document.getElementById('endgame-grid'); g.innerHTML = '';
             ranks.forEach((t, index) => {
                 const rankNum = index + 1;
-                let effectClass = "";
-                if(rankNum <= 3) effectClass = "confetti-effect";
-
-                // 【翻牌修復】最乾淨俐落的 onclick 切換
                 g.innerHTML += `
                 <div class="flip-card" onclick="this.classList.toggle('flipped'); if(${rankNum}<=3) this.classList.add('confetti-effect');">
                     <div class="flip-card-inner">
