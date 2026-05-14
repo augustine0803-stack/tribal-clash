@@ -124,7 +124,6 @@ io.on('connection', (socket) => {
             let id = `team${i}`;
             let tName = `${names[i-1] || i}號部落`;
             
-            // 【就是這行魔法】如果設定 10 組，強制將第 5 組改名為「天神」
             if (parsedCount === 10 && i === 5) {
                 tName = '天神';
             }
@@ -341,16 +340,19 @@ function prepareMagicSequence() {
         return;
     }
     if (gameState.currentQuestionIndex === 10) { 
-        correctTeams[0].magicCard = x10Card;
+        // 修正傳遞給學生的魔法卡物件，過濾掉無法傳輸的 action 函數
+        correctTeams[0].magicCard = { id: x10Card.id, name: x10Card.name, desc: x10Card.desc };
         x10Card.action(correctTeams[0]);
         for(let i=1; i<correctTeams.length; i++) {
             let rc = magicCards[Math.floor(Math.random() * magicCards.length)];
-            correctTeams[i].magicCard = rc; rc.action(correctTeams[i]);
+            correctTeams[i].magicCard = { id: rc.id, name: rc.name, desc: rc.desc }; 
+            rc.action(correctTeams[i]);
         }
     } else {
         correctTeams.forEach(t => {
             let rc = magicCards[Math.floor(Math.random() * magicCards.length)];
-            t.magicCard = rc; rc.action(t);
+            t.magicCard = { id: rc.id, name: rc.name, desc: rc.desc }; // 確保手機端能收到文字
+            rc.action(t);
         });
     }
 }
